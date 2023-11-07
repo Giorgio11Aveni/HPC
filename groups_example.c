@@ -1,6 +1,5 @@
 #include <mpi.h>
 #include <stdio.h>
-#include <string.h>
 
 int main(int argc, char **argv) {
     MPI_Init(&argc, &argv);
@@ -9,46 +8,40 @@ int main(int argc, char **argv) {
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
     MPI_Comm_size(MPI_COMM_WORLD, &size);
 
-    MPI_Comm server_centrale_comm, server_intermedio_comm, dispositivi_locali_comm;
-    int new_color;
+    int central_server_rank = 0;
+    int intermediary_server_rank = 1;
 
-    if (rank == 0) {
-        // Il processo con rango 0 è il server centrale
-        new_color = 0;
-    } else if (rank == 1) {
-        // Il processo con rango 1 è il server intermedio
-        new_color = 1;
-    } else {
-        // Gli altri processi sono dispositivi locali
-        new_color = 2;
-    }
+    float message[4]; // Inizializza un array di numeri in virgola mobile
 
-    MPI_Comm_split(MPI_COMM_WORLD, new_color, rank, &server_centrale_comm);
-
-   float messaggio[4]; // Inizializza un array di numeri in virgola mobile
-
-    if (new_color == 0) {
-        // Questo è il server centrale
-        printf("Sono il server centrale. Rango %d di %d.\n", rank, size);
+    if (rank == central_server_rank) {
+        // Questo è il central server
+        printf("Sono il central server. Rank %d di %d.\n", rank, size);
         // Inizializza l'array con i numeri desiderati
-        messaggio[0] = 1.0;
-        messaggio[1] = 2.0;
-        messaggio[2] = 3.0;
-        messaggio[3] = 4.0;
-        MPI_Bcast(messaggio, 4, MPI_FLOAT, 0, server_centrale_comm); // Broadcast a tutti
-    } else if (new_color == 1) {
-        // Questo è un server intermedio
-        printf("Sono il server intermedio. Rango %d di %d.\n", rank, size);
-        MPI_Bcast(messaggio, 4, MPI_FLOAT, 0, server_centrale_comm); // Ricevi il messaggio da server centrale
-        printf("Messaggio ricevuto da server centrale: %f %f %f %f\n", messaggio[0], messaggio[1], messaggio[2], messaggio[3]);
+        message[0] = 1.0;
+        message[1] = 2.0;
+        message[2] = 3.0;
+        message[3] = 4.0;
+        // Invia il messaggio all'intermediary server
+        MPI_Send(message, 4, MPI_FLOAT, intermediary_server_rank, 0, MPI_COMM_WORLD);
+    } else if (rank == intermediary_server_rank) {
+        // Questo è l'intermediary server
+        printf("Sono l'intermediary server. Rank %d di %d.\n", rank, size);
+        // Ricevi il messaggio dal central server
+        MPI_Recv(message, 4, MPI_FLOAT, central_server_rank, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+        printf("Messaggio ricevuto dal server centrale: %f %f %f %f\n", message[0], message[1], message[2], message[3]);
+        // Invia il messaggio ai dispositivi locali
+        for (int i = 2; i < size; i++) {
+            if (i != central_server_rank && i != intermediary_server_rank) {
+                MPI_Send(message, 4, MPI_FLOAT, i, 0, MPI_COMM_WORLD);
+            }
+        }
     } else {
         // Questo è un dispositivo locale
-        printf("Sono un dispositivo locale. Rango %d di %d.\n", rank, size);
-        MPI_Bcast(messaggio, 4, MPI_FLOAT, 0, server_centrale_comm); // Ricevi il messaggio da server intermedio
-        printf("Messaggio ricevuto da server intermedio: %f %f %f %f\n", messaggio[0], messaggio[1], messaggio[2], messaggio[3]);
+        printf("Sono un dispositivo locale. Rank %d di %d.\n", rank, size);
+        // Ricevi il messaggio dall'intermediary server
+        MPI_Recv(message, 4, MPI_FLOAT, intermediary_server_rank, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+        printf("Messaggio ricevuto dall'intermediary server: %f %f %f %f\n", message[0], message[1], message[2], message[3]);
     }
-
-    MPI_Comm_free(&server_centrale_comm);
 
     MPI_Finalize();
     return 0;
