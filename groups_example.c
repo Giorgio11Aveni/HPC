@@ -1,3 +1,10 @@
+/*This code implement a hierarchical structure made up by a central server that
+  create the message (a float array of four float number) and send this message
+  to a intermediary server, that resend the message to all local devices that 
+  will print the message.
+
+*/
+
 #include <mpi.h>
 #include <stdio.h>
 
