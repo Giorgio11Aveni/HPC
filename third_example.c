@@ -36,21 +36,28 @@ int main(int argc, char *argv[]) {
         MPI_Comm_size(comm_group, &group_size);
 
         printf("Processo %d nel gruppo %d. Rank nel gruppo: %d\n", rank, group_number, group_rank);
-
-        int global_message = -1; // Inizializza il messaggio del processo con rank 0 globale
+        float global_message [4];
+        global_message[0] = -1.0;
+        global_message[1] = -1.0;
+        global_message[2] = -1.0;
+        global_message[3] = -1.0;
+         // Inizializza il messaggio del processo con rank 0 globale
 
         if (group_rank == 0) {
             if (rank == 0) {
                 // Processo con rank 0 globale inizia il messaggio
-                global_message = 42; // Esempio di messaggio
+                global_message[0] = 10.0; // Esempio di messaggio
+                global_message[1] = 11.0;
+                global_message[2] = 12.0;
+                global_message[3] = 13.0;
             }
         }
 
         // Invia il messaggio del processo con rank 0 globale a tutti i gruppi
-        MPI_Bcast(&global_message, 1, MPI_INT, 0, MPI_COMM_WORLD);
+        MPI_Bcast(&global_message, 4, MPI_FLOAT, 0, MPI_COMM_WORLD);
 
         // Stampa il messaggio ricevuto da ciascun processo nel gruppo
-        printf("Processo %d nel gruppo %d ha ricevuto il messaggio: %d\n", rank, group_number, global_message);
+        printf("Ha ricevuto il messaggio: %f %f %f %f\n\n", global_message[0],global_message[1],global_message[2],global_message[3]);
 
         int group_members[group_size];
         MPI_Gather(&rank, 1, MPI_INT, group_members, 1, MPI_INT, 0, comm_group);
@@ -60,7 +67,7 @@ int main(int argc, char *argv[]) {
             for (int i = 0; i < group_size; i++) {
                 printf("%d ", group_members[i]);
             }
-            printf("\n");
+            printf("\n\n");
         }
 
         if (group_number >= 0) {
