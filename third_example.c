@@ -1,3 +1,8 @@
+/*this code implement an hierarchical structure that is made up by a server and local devices. 
+The server is the process with global rank 0 and it will create the message and it will send in
+broadcast to all the processes.
+All the processes are split into 3 different group. They will print the recived message form the server and they will print it.*/
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <mpi.h>
