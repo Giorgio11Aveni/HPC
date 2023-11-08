@@ -1,3 +1,7 @@
+/* this code split all the processes into four different groups and 
+   print the old rank of each process and the new rank into the group 
+   for all processes */
+
 #include <mpi.h>
 #include <stdio.h>
 
