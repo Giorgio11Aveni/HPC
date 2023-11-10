@@ -33,31 +33,47 @@ int main(int argc, char *argv[]) {
         MPI_Comm_size(comm_group, &group_size);
 
         if (rank == 0) {
-            printf("Processo %d non appartiene a nessun gruppo.\n\n", rank);
+            printf("Processo %d non appartiene a nessun gruppo perche' e' il server centrale.\n", rank);
         } else if(group_number != 0) {
-            printf("Processo %d nel gruppo %d. Rank nel gruppo: %d\n\n", rank, group_number, group_rank);
-        }else{
             printf("Processo %d nel gruppo %d. Rank nel gruppo: %d\n", rank, group_number, group_rank);
+        }else{
+            printf("Processo %d nel gruppo dei server intermedi %d. Rank nel gruppo: %d\n", rank, group_number, group_rank);
         }
 
         float global_message[4];
-       // Processo con rank 0 globale inizia il messaggio
-                global_message[0] = 10.0; // Esempio di messaggio
-                global_message[1] = 11.0;
-                global_message[2] = 12.0;
-                global_message[3] = 13.0;
 
-       
+        global_message[0] = 0.0;
+        global_message[1] = 0.0;
+        global_message[2] = 0.0;
+        global_message[3] = 0.0;
 
-        // Invia il messaggio solo ai processi nel nuovo gruppo (gruppo 0)
-        if (group_number == 0) {
-            MPI_Bcast(&global_message, 4, MPI_FLOAT, 0, comm_group);
+
+        if (rank == 0)
+        {
+            // Processo con rank 0 globale inizializza il messaggio
+            global_message[0] = 10.0;
+            global_message[1] = 11.0;
+            global_message[2] = 12.0;
+            global_message[3] = 13.0;
+
+            printf("Messaggio da inviare: %f %f %f %f\n\n", global_message[0], global_message[1], global_message[2], global_message[3]);
         }
 
-        if (rank != 0 ) {
+        // Invia il messaggio solo ai processi nel gruppo 0
+        if (group_number == 0 || rank == 0) {
+            MPI_Bcast(&global_message, 4, MPI_FLOAT, 0, MPI_COMM_WORLD);
+        }
+   
+        if (group_number == 0 ) {
+            // Stampa il messaggio ricevuto dal processo 0
+            printf("Ha ricevuto il messaggio dal server centrale: %f %f %f %f\n\n", global_message[0], global_message[1], global_message[2], global_message[3]);
+            
+        }else if (group_number == 1 || group_number == 2 || group_number == 3 )
+        {
             // Stampa il messaggio ricevuto da ciascun processo nel gruppo 0
-            printf("Ha ricevuto il messaggio: %f %f %f %f\n\n", global_message[0], global_message[1], global_message[2], global_message[3]);
+            printf("Ha ricevuto il messaggio dal server intermedio: %f %f %f %f\n\n", global_message[0], global_message[1], global_message[2], global_message[3]);
         }
+        
 
         int group_members[group_size];
         MPI_Gather(&rank, 1, MPI_INT, group_members, 1, MPI_INT, 0, comm_group);
