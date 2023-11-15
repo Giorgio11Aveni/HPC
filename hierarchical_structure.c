@@ -166,7 +166,6 @@ int main(int argc, char *argv[]) {
                     printf("\n");
                 }
 
-                printf("\n");
             }
 
 
@@ -183,7 +182,6 @@ int main(int argc, char *argv[]) {
                     printf("\n");
                 }
 
-                printf("\n");
             }
         
         if (rank == 3 || group_number == 3)
@@ -199,7 +197,7 @@ int main(int argc, char *argv[]) {
                     printf("\n");
                 }
 
-                printf("\n");
+                
             }
 
     int avg_intermediary_server1 = 0;
@@ -215,7 +213,7 @@ int main(int argc, char *argv[]) {
             }
 
              avg_intermediary_server1 = sum/3;
-             printf("Average group 1: %d",avg_intermediary_server1);
+             printf("Average group 1: %d\n\n",avg_intermediary_server1);
         }
 
         if (rank == 2)
@@ -227,7 +225,7 @@ int main(int argc, char *argv[]) {
             }
 
             avg_intermediary_server2 = sum/3;
-            printf("Average group 2; %d",avg_intermediary_server2);
+            printf("Average group 2: %d\n\n",avg_intermediary_server2);
         }
 
          if (rank == 3)
@@ -239,25 +237,40 @@ int main(int argc, char *argv[]) {
             }
 
             avg_intermediary_server3 = sum/3;
-            printf("Average group 3: %d",avg_intermediary_server3);
+            printf("Average group 3: %d \n\n",avg_intermediary_server3);
         }
         
+        int final_gather[3];
 
         if (rank == 0 || group_number == 0)
         {
-            MPI_Gather(&avg_intermediary_server1, 1, MPI_INT, &gathered_array0[0], 1, MPI_FLOAT, 0, server_group);
-            MPI_Gather(&avg_intermediary_server2, 1, MPI_INT, &gathered_array0[1], 1, MPI_FLOAT, 0, server_group);
-            MPI_Gather(&avg_intermediary_server2, 1, MPI_INT, &gathered_array0[2], 1, MPI_FLOAT, 0, server_group);
+            MPI_Gather(&avg_intermediary_server1, 1, MPI_INT, &gathered_array0, 1, MPI_FLOAT, 0, server_group);
+            final_gather[1] = gathered_array0[1];
             
-            
+            MPI_Gather(&avg_intermediary_server2, 1, MPI_INT, &gathered_array0, 1, MPI_FLOAT, 0, server_group);
+            final_gather[2] = gathered_array0[2];
 
+            MPI_Gather(&avg_intermediary_server3, 1, MPI_INT, &gathered_array0, 1, MPI_FLOAT, 0, server_group);
+            final_gather[3] = gathered_array0[3];
+            
            if (group_server_rank == 0) {
             printf("Values received from all group processes:\n");
 
             for (int i = 1; i < group_server_size; i++) {
-                printf("Process %d: %d\n", i, gathered_array0[i]);
+                printf("Average group %d: %d\n", i, final_gather[i]);
             }
                     printf("\n");
+                    
+                    int sum = 0;
+
+                    for (int i = 1; i < 4; i++) {
+                        
+                        sum += final_gather[i];
+                     }
+            int final_lable = 0;
+             final_lable= sum/3;
+            printf("Final lable for the point: %d \n\n",final_lable);
+
                 }
 
                 printf("\n");    
@@ -283,15 +296,13 @@ int main(int argc, char *argv[]) {
 
         if (group_number != -1) {
             if (group_server_rank == 0) {
-                printf("Gruppo %d comprende i seguenti membri: ", group_number);
+                printf("Group %d includes the following processes: ", group_number);
                 for (int i = 0; i < group_server_size; i++) {
                     printf("%d ", group_members[i]);
                 }
                 printf("\n\n");
             }
         }
-
-
     }
 
     MPI_Finalize();
