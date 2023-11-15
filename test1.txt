@@ -1,0 +1,138 @@
+mpiexec -np 13 hierarchical_structure
+
+Process rank 0.
+Central server.
+Rank in the group: 0.
+Message to send: 10.000000 11.000000 12.000000 13.000000
+
+Values received from all group processes:
+Average group 1: 10
+Average group 2: 20
+Average group 3: 30
+
+Final lable for the point: 20 
+
+
+Group 0 includes the following processes: 0 1 2 3       
+
+Process rank 4.
+Local Device.
+Group number: 1.
+Rank in the group: 1.
+Intermediary Server associated: 1.
+Message received form the intermediary server 1: 10.000000 11.000000 12.000000 13.000000
+Result to send: 10
+
+Group 1 includes the following processes: 4 7 10 
+
+Process rank 7.
+Local Device.
+Group number: 1.
+Rank in the group: 2.
+Intermediary Server associated: 1.
+Message received form the intermediary server 1: 10.000000 11.000000 12.000000 13.000000
+Result to send: 10
+
+Process rank 5.
+Local Device.
+Group number: 2.
+Rank in the group: 1.
+Intermediary Server associated: 2.
+Message received form the intermediary server 2: 10.000000 11.000000 12.000000 13.000000
+Result to send: 20
+
+Group 2 includes the following processes: 5 8 11
+
+Process rank 12.
+Local Device.
+Group number: 3.
+Rank in the group: 3.
+Intermediary Server associated: 3.
+Message received form the intermediary server 3: 10.000000 11.000000 12.000000 13.000000
+Result to send: 30
+
+Process rank 6.
+Local Device.
+Group number: 3.
+Rank in the group: 1.
+Intermediary Server associated: 3.
+Message received form the intermediary server 3: 10.000000 11.000000 12.000000 13.000000
+Result to send: 30
+
+Group 3 includes the following processes: 6 9 12
+
+Process rank 11.
+Local Device.
+Group number: 2.
+Rank in the group: 3.
+Intermediary Server associated: 2.
+Message received form the intermediary server 2: 10.000000 11.000000 12.000000 13.000000
+Result to send: 20
+
+Process rank 8.
+Local Device.
+Group number: 2.
+Rank in the group: 2.
+Intermediary Server associated: 2.
+Message received form the intermediary server 2: 10.000000 11.000000 12.000000 13.000000
+Result to send: 20
+
+Process rank 3.
+Intermediary Server 3.
+Group number: 0.
+Rank in the group 3: 0.
+Rank in the server group: 3.
+Message received from the central server: 10.000000 11.000000 12.000000 13.000000
+
+Values received from group 3 processes:
+Process 1: 30
+Process 2: 30
+Process 3: 30
+
+Average group 3: 30
+
+
+Process rank 10.
+Local Device.
+Group number: 1.
+Rank in the group: 3.
+Intermediary Server associated: 1.
+Message received form the intermediary server 1: 10.000000 11.000000 12.000000 13.000000
+Result to send: 10
+
+Process rank 9.
+Local Device.
+Group number: 3.
+Rank in the group: 2.
+Intermediary Server associated: 3.
+Message received form the intermediary server 3: 10.000000 11.000000 12.000000 13.000000
+Result to send: 30
+
+Process rank 1.
+Intermediary Server 1.
+Group number: 0.
+Rank in the group 1: 0.
+Rank in the server group: 1.
+Message received from the central server: 10.000000 11.000000 12.000000 13.000000
+
+Values received from group 1 processes:
+Process 1: 10
+Process 2: 10
+Process 3: 10
+
+Average group 1: 10
+
+
+Process rank 2.
+Intermediary Server 2.
+Group number: 0.
+Rank in the group 2: 0.
+Rank in the server group: 2.
+Message received from the central server: 10.000000 11.000000 12.000000 13.000000
+
+Values received from group 2 processes:
+Process 1: 20
+Process 2: 20
+Process 3: 20
+
+Average group 2: 20
