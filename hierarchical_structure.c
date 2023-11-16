@@ -1,6 +1,28 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <mpi.h>
+#include <pthread.h>
+
+#define NUM_THREADS 5
+
+// Struttura dati per passare l'ID del thread
+typedef struct {
+    int thread_id;
+} ThreadData;
+
+// Funzione eseguita dai thread
+void *calcolaNumero(void *arg) {
+    ThreadData *data = (ThreadData *)arg;
+
+    // Calcola il numero
+    int numero_calcolato = data->thread_id * 2;
+
+    // Ritorna il risultato come puntatore
+    int *result = malloc(sizeof(int));
+    *result = numero_calcolato;
+
+    pthread_exit(result);
+}
 
 int main(int argc, char *argv[]) {
     MPI_Init(&argc, &argv);
@@ -131,15 +153,51 @@ int main(int argc, char *argv[]) {
         }
 
         int label = 0;
+        float media = 0.0;
 
-        if (group_number == 1)
+
+        if (group_number == 1 && rank != 1)
         {
-            label = 10;
-            
-            printf("Message to send: %d\n\n", label);
-        }else if (group_number == 2)
+            // Numero di thread
+    const int num_thread = 5;
+
+    // Array di dati per i thread
+    ThreadData thread_data[num_thread];
+
+    // Array per memorizzare i risultati
+    int *risultati[num_thread];
+
+    // Inizializza i dati e avvia i thread
+    pthread_t threads[num_thread];
+    for (int i = 0; i < num_thread; ++i) {
+        thread_data[i].thread_id = i;
+
+        pthread_create(&threads[i], NULL, calcolaNumero, (void *)&thread_data[i]);
+    }
+
+    // Attendi la fine di tutti i thread e calcola la media dei risultati
+    int somma = 0;
+    for (int i = 0; i < num_thread; ++i) {
+        pthread_join(threads[i], (void **)&risultati[i]);
+        somma += *risultati[i];
+    }
+
+    for (int i = 0; i < num_thread; ++i) {
+        printf("Thread %d: %d\n", i, *risultati[i]);
+
+        // Libera la memoria allocata per il risultato
+        free(risultati[i]);
+    }
+
+
+    // Calcola la media
+     media = (float)somma / num_thread;
+
+    printf("Media: %.2f\n", media);
+
+        }else if (group_number == 2 && rank != 2)
         {
-            label = 20;
+            label = 19;
              printf("Message to send: %d\n\n", label);
         }else if (group_number == 3)
         {
@@ -155,7 +213,7 @@ int main(int argc, char *argv[]) {
 
         if (rank == 1 || group_number == 1)
         {
-            MPI_Gather(&label, 1, MPI_INT, gathered_array1, 1, MPI_INT, 0, intermediary_server1);
+            MPI_Gather(&media, 1, MPI_FLOAT, gathered_array1, 1, MPI_FLOAT, 0, intermediary_server1);
 
            if (group1_rank == 0) {
             printf("Values received from group 1 processes:\n");
