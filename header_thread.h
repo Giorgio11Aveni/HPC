@@ -11,6 +11,8 @@ typedef struct {
 } ThreadData;
 
 // Funzione eseguita dai thread
-void *calcolaNumero(void *arg);
+void *calcolaNumero(void *arg, int group_number);
+
+int group_calculations(int group_number, int rank, int media);
 
 #endif // FUNCTIONS_H
