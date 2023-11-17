@@ -85,3 +85,20 @@ void printLocalDeviceDetails(int rank, int group_number, int intermediary_server
                intermediary_server_number_associated, intermediary_server_number_associated, global_message[0], global_message[1], global_message[2], global_message[3]);
     }
 }
+
+void gather_and_print_values(int rank, int group_number, int media, int* gathered_array, int group_rank, int group_size, MPI_Comm intermediary_server) {
+    if ((rank == 1 || group_number == 1) || (rank == 2 || group_number == 2) || (rank == 3 || group_number == 3)) {
+        MPI_Gather(&media, 1, MPI_INT, gathered_array, 1, MPI_INT, 0, intermediary_server);
+
+        if (group_rank == 0) {
+            printf("Values received from group %d processes:\n", group_number);
+
+            for (int i = 1; i < group_size; i++) {
+                printf("Process %d: %d\n", i, gathered_array[i]);
+            }
+            printf("\n");
+        }
+    }
+}
+
+
