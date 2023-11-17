@@ -4,13 +4,22 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-void *calcolaNumero(void *arg, int group_number) {
+void *calcolaNumero(void *arg) {
     ThreadData *data = (ThreadData *)arg;
 
     srand(time(NULL));
 
     // Calcola il numero
-    int numero_calcolato = (rand() % 15) + group_number;
+    int numero_calcolato = 0;
+    if (data->group_number == 1){
+    numero_calcolato = (rand() % 15) + data->group_number;
+    }
+    if (data->group_number == 2){
+    numero_calcolato = (rand() % 15) + data->group_number;
+    }
+    if (data->group_number == 3){
+    numero_calcolato = (rand() % 15) + data->group_number;
+    }
 
     // Ritorna il risultato come puntatore
     int *result = malloc(sizeof(int));
@@ -35,6 +44,7 @@ int group_calculations(int group_number, int rank,int media) {
         pthread_t threads[num_thread];
         for (int i = 0; i < num_thread; ++i) {
             thread_data[i].thread_id = i;
+            thread_data[i].group_number = group_number;
 
             pthread_create(&threads[i], NULL, (void *(*)(void *))calcolaNumero, (void *)&thread_data[i]);
 
