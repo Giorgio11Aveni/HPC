@@ -18,4 +18,6 @@ void printIntermediaryServerProcessDetails(int rank, int intermediary_server_num
 
 void printLocalDeviceDetails(int rank, int group_number, int intermediary_server_number_associated, int group1_rank, int group2_rank, int group3_rank, float *global_message);
 
+void gather_and_print_values(int rank, int group_number, int media, int* gathered_array, int group_rank, int group_size, MPI_Comm intermediary_server);
+
 #endif // FUNCTIONS_H
