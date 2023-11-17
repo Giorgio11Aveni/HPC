@@ -88,58 +88,16 @@ int main(int argc, char *argv[]) {
     media = group_calculations(group_number, rank, media);
     
 
-    int gathered_array0[group_server_size]; // The root process will collect all the arrays into this array of float array
-    int gathered_array1[group1_size]; // The root process will collect all the arrays into this array of float arrays
-    int gathered_array2[group2_size]; // The root process will collect all the arrays into this array of float arrays
-    int gathered_array3[group3_size]; // The root process will collect all the arrays into this array of float arrays
+    int gathered_array0[group_server_size]; // The grooup 0 root process will collect all the arrays into this array of float array
+    int gathered_array1[group1_size]; // The group 1 root process will collect all the arrays into this array of float arrays
+    int gathered_array2[group2_size]; // The group 2root process will collect all the arrays into this array of float arrays
+    int gathered_array3[group3_size]; // The group 3 process will collect all the arrays into this array of float arrays
         
 
-        if (rank == 1 || group_number == 1)
-        {
-            MPI_Gather(&media, 1, MPI_INT, &gathered_array1, 1, MPI_INT, 0, intermediary_server1);
-
-           if (group1_rank == 0) {
-            printf("Values received from group 1 processes:\n");
-
-            for (int i = 1; i < group1_size; i++) {
-                printf("Process %d: %d\n", i, gathered_array1[i]);
-            }
-                    printf("\n");
-                }
-
-            }
-
-
-        if (rank == 2 || group_number == 2)
-        {
-            MPI_Gather(&media, 1, MPI_INT, &gathered_array2, 1, MPI_INT, 0, intermediary_server2);
-
-           if (group2_rank == 0) {
-            printf("Values received from group 2 processes:\n");
-
-            for (int i = 1; i < group2_size; i++) {
-                printf("Process %d: %d\n", i, gathered_array2[i]);
-            }
-                    printf("\n");
-                }
-
-            }
-        
-        if (rank == 3 || group_number == 3)
-        {
-            MPI_Gather(&media, 1, MPI_INT, &gathered_array3, 1, MPI_INT, 0, intermediary_server3);
-
-           if (group3_rank == 0) {
-            printf("Values received from group 3 processes:\n");
-
-            for (int i = 1; i < group3_size; i++) {
-                printf("Process %d: %d\n", i, gathered_array3[i]);
-            }
-                    printf("\n");
-                }
-
-                
-            }
+    // Chiamate alla funzione per ogni gruppo
+    gather_and_print_values(rank, group_number, media, gathered_array1, group1_rank, group1_size, intermediary_server1);
+    gather_and_print_values(rank, group_number, media, gathered_array2, group2_rank, group2_size, intermediary_server2);
+    gather_and_print_values(rank, group_number, media, gathered_array3, group3_rank, group3_size, intermediary_server3);
 
     int avg_intermediary_server1 = 0;
     int avg_intermediary_server2 = 0;
