@@ -46,16 +46,7 @@ int main(int argc, char *argv[]) {
          MPI_Bcast(&global_message, 4, MPI_FLOAT, 0,server_group);
     }
 
-    if (rank == 1 || group_number == 1)
-    {
-        intermediary_server_number_associated = 1;
-    }else if (rank == 2 || group_number == 2)
-    {
-        intermediary_server_number_associated = 2; 
-    }else if (rank == 3 || group_number == 3)
-    {
-        intermediary_server_number_associated = 3; 
-    }
+    intermediary_server_number_associated = getIntermediaryServerNumber(rank, group_number);
     
     MPI_Comm intermediary_server1;
     MPI_Comm_split(MPI_COMM_WORLD, intermediary_server_number_associated, rank, &intermediary_server1);
@@ -65,11 +56,7 @@ int main(int argc, char *argv[]) {
 
     getGroupInfo(intermediary_server1, &group1_rank, &group1_size);
   
-
-    if (rank == 1 || group_number == 1)
-    {
-        MPI_Bcast(&global_message, 4, MPI_FLOAT, 0, intermediary_server1);
-    }
+    broadcastMessage(rank, group_number, global_message, intermediary_server1);
     
     MPI_Comm intermediary_server2;
     MPI_Comm_split(MPI_COMM_WORLD, intermediary_server_number_associated, rank, &intermediary_server2);
@@ -79,10 +66,7 @@ int main(int argc, char *argv[]) {
 
     getGroupInfo(intermediary_server2, &group2_rank, &group2_size);
 
-        if (rank == 2 || group_number == 2)
-        {
-            MPI_Bcast(&global_message, 4, MPI_FLOAT, 0, intermediary_server2);
-        }
+    broadcastMessage(rank, group_number, global_message, intermediary_server2);
     
     MPI_Comm intermediary_server3;
     MPI_Comm_split(MPI_COMM_WORLD, intermediary_server_number_associated, rank, &intermediary_server3);
@@ -92,88 +76,17 @@ int main(int argc, char *argv[]) {
 
     getGroupInfo(intermediary_server3, &group3_rank, &group3_size); 
 
-        if (rank == 3 || group_number == 3)
-        {
-            MPI_Bcast(&global_message, 4, MPI_FLOAT, 0, intermediary_server3);
-        }
-        if(rank>=1 && rank <=3)
-        {
-            if(intermediary_server_number_associated == 1)
-            {
-                printf("Process rank %d.\nIntermediary Server %d.\nGroup number: %d.\nRank in the group 1: %d.\nRank in the server group: %d.\nMessage received from the central server: %f %f %f %f\n\n",rank, intermediary_server_number_associated, group_number, group1_rank, group_server_rank, global_message[0], global_message[1], global_message[2], global_message[3]);
-            }else if (intermediary_server_number_associated ==2)
-            {
-                printf("Process rank %d.\nIntermediary Server %d.\nGroup number: %d.\nRank in the group 2: %d.\nRank in the server group: %d.\nMessage received from the central server: %f %f %f %f\n\n",rank, intermediary_server_number_associated, group_number, group1_rank, group_server_rank, global_message[0], global_message[1], global_message[2], global_message[3]);
-            }else if (intermediary_server_number_associated ==3)
-            {
-                printf("Process rank %d.\nIntermediary Server %d.\nGroup number: %d.\nRank in the group 3: %d.\nRank in the server group: %d.\nMessage received from the central server: %f %f %f %f\n\n",rank, intermediary_server_number_associated, group_number, group1_rank, group_server_rank, global_message[0], global_message[1], global_message[2], global_message[3]);
-            }
-            
-        }else if (group_number == 1)
-        {
-            printf("Process rank %d.\nLocal Device.\nGroup number: %d.\nRank in the group: %d.\nIntermediary Server associated: %d.\nMessage received form the intermediary server %d: %f %f %f %f\n\n",rank, group_number, group1_rank, intermediary_server_number_associated, intermediary_server_number_associated, global_message[0], global_message[1], global_message[2], global_message[3]);
-        }else if (group_number == 2)
-        {
-            printf("Process rank %d.\nLocal Device.\nGroup number: %d.\nRank in the group: %d.\nIntermediary Server associated: %d.\nMessage received form the intermediary server %d: %f %f %f %f\n\n",rank, group_number, group2_rank, intermediary_server_number_associated, intermediary_server_number_associated, global_message[0], global_message[1], global_message[2], global_message[3]);
-        }else if (group_number == 3)
-        {
-            printf("Process rank %d.\nLocal Device.\nGroup number: %d.\nRank in the group: %d.\nIntermediary Server associated: %d.\nMessage received form the intermediary server %d: %f %f %f %f\n\n",rank, group_number, group3_rank, intermediary_server_number_associated, intermediary_server_number_associated, global_message[0], global_message[1], global_message[2], global_message[3]);
-        }
+    broadcastMessage(rank, group_number, global_message, intermediary_server3);
+    
+    printIntermediaryServerProcessDetails(rank, intermediary_server_number_associated, group_number, group1_rank, group2_rank, group3_rank, group_server_rank, global_message);
 
-        int label = 0;
-        int media = 0;
+    printLocalDeviceDetails(rank, group_number, intermediary_server_number_associated, group1_rank, group2_rank, group3_rank, global_message);
 
+    int label = 0;
+    int media = 0;
 
-        if (group_number == 1 && rank != 1)
-        {
-            // Numero di thread
-    const int num_thread = 5;
-
-    // Array di dati per i thread
-    ThreadData thread_data[num_thread];
-
-    // Array per memorizzare i risultati
-    int *risultati[num_thread];
-
-    // Inizializza i dati e avvia i thread
-    pthread_t threads[num_thread];
-    for (int i = 0; i < num_thread; ++i) {
-        thread_data[i].thread_id = i;
-
-        pthread_create(&threads[i], NULL, calcolaNumero, (void *)&thread_data[i]);
-    }
-
-    // Attendi la fine di tutti i thread e calcola la media dei risultati
-    int somma = 0;
-    for (int i = 0; i < num_thread; ++i) {
-        pthread_join(threads[i], (void **)&risultati[i]);
-        somma += *risultati[i];
-    }
-
-    for (int i = 0; i < num_thread; ++i) {
-
-        printf("Thread %d: %d\n", i, *risultati[i]); 
-        
-
-        // Libera la memoria allocata per il risultato
-        free(risultati[i]);
-    }
-
-
-    // Calcola la media
-     media = somma / num_thread;
-
-    printf("Average process %d: %d\n\n", rank, media);
-
-        }else if (group_number == 2 && rank != 2)
-        {
-            label = 19;
-             printf("Message to send: %d\n\n", label);
-        }else if (group_number == 3)
-        {
-            label = 30;
-             printf("Message to send: %d\n\n", label);
-        }
+    media = group_calculations(group_number, rank, media);
+    
 
     int gathered_array0[group_server_size]; // The root process will collect all the arrays into this array of float array
     int gathered_array1[group1_size]; // The root process will collect all the arrays into this array of float arrays
@@ -199,7 +112,7 @@ int main(int argc, char *argv[]) {
 
         if (rank == 2 || group_number == 2)
         {
-            MPI_Gather(&label, 1, MPI_INT, &gathered_array2, 1, MPI_INT, 0, intermediary_server2);
+            MPI_Gather(&media, 1, MPI_INT, &gathered_array2, 1, MPI_INT, 0, intermediary_server2);
 
            if (group2_rank == 0) {
             printf("Values received from group 2 processes:\n");
@@ -214,7 +127,7 @@ int main(int argc, char *argv[]) {
         
         if (rank == 3 || group_number == 3)
         {
-            MPI_Gather(&label, 1, MPI_INT, &gathered_array3, 1, MPI_INT, 0, intermediary_server3);
+            MPI_Gather(&media, 1, MPI_INT, &gathered_array3, 1, MPI_INT, 0, intermediary_server3);
 
            if (group3_rank == 0) {
             printf("Values received from group 3 processes:\n");
