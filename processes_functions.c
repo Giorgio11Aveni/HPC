@@ -86,19 +86,106 @@ void printLocalDeviceDetails(int rank, int group_number, int intermediary_server
     }
 }
 
-void gather_and_print_values(int rank, int group_number, int media, int* gathered_array, int group_rank, int group_size, MPI_Comm intermediary_server) {
-    if ((rank == 1 || group_number == 1) || (rank == 2 || group_number == 2) || (rank == 3 || group_number == 3)) {
-        MPI_Gather(&media, 1, MPI_INT, gathered_array, 1, MPI_INT, 0, intermediary_server);
+void gatherAndPrintValues(int rank, int group_number, int average, int* gathered_array, int group_rank, int group_size, MPI_Comm intermediary_server, int intermediary_server_associated) {
+        
+    MPI_Gather(&average, 1, MPI_INT, gathered_array, 1, MPI_INT, 0, intermediary_server);
 
-        if (group_rank == 0) {
-            printf("Values received from group %d processes:\n", group_number);
+    if ((group_rank == 0 && intermediary_server_associated == 1) || (group_rank == 0 && intermediary_server_associated == 2) || (group_rank == 0 && intermediary_server_associated == 3)) {
+        printf("Values received from group %d processes:\n", intermediary_server_associated);
 
-            for (int i = 1; i < group_size; i++) {
-                printf("Process %d: %d\n", i, gathered_array[i]);
-            }
-            printf("\n");
+        for (int i = 1; i < group_size; i++) {
+            printf("Process %d: %d\n", i, gathered_array[i]);
         }
     }
 }
 
+int calculateAndPrintAverage(int rank, int gathered_array[], int avg_intermediary_server) {
+    int sum = 0;
 
+    for (int i = 0; i < 4; i++) {
+        sum += gathered_array[i];
+    }
+
+    switch(rank) {
+        case 1:
+            avg_intermediary_server = sum / 3;
+            printf("Average group 1: %d\n\n", avg_intermediary_server);
+            return avg_intermediary_server;
+        case 2:
+            avg_intermediary_server = sum / 3;
+            printf("Average group 2: %d\n\n", avg_intermediary_server);
+            return avg_intermediary_server;
+        case 3:
+            avg_intermediary_server = sum / 3;
+            printf("Average group 3: %d\n\n", avg_intermediary_server);
+            return avg_intermediary_server;
+        default:
+            
+    }
+}
+
+void gatherAndPrintFinalLabel(int rank, int group_number, int* gathered_array0, int* final_gather, int avg_intermediary_server1, int avg_intermediary_server2, int avg_intermediary_server3, int group_server_rank, int group_server_size, MPI_Comm server_group) {
+    
+    if (rank == 0 || group_number == 0){
+    MPI_Gather(&avg_intermediary_server1, 1, MPI_INT, gathered_array0, 1, MPI_INT, 0, server_group);
+    final_gather[1] = gathered_array0[1];
+
+    MPI_Gather(&avg_intermediary_server2, 1, MPI_INT, gathered_array0, 1, MPI_INT, 0, server_group);
+    final_gather[2] = gathered_array0[2];
+
+    MPI_Gather(&avg_intermediary_server3, 1, MPI_INT, gathered_array0, 1, MPI_INT, 0, server_group);
+    final_gather[3] = gathered_array0[3];
+
+        if (group_server_rank == 0) {
+            printf("Values received from all group processes:\n");
+
+            for (int i = 1; i < group_server_size; i++) {
+                printf("Average group %d: %d\n", i, final_gather[i]);
+            }
+
+            printf("\n");
+
+            int sum = 0;
+
+            for (int i = 1; i <= 3; i++) {
+                sum += final_gather[i];
+            }
+
+            int final_label = sum / 3;
+            printf("Final label for the point: %d \n\n", final_label);
+        }
+
+        printf("\n");
+    }
+}
+
+void freeIntermediaryCommunicator(int rank, int group_number, MPI_Comm* intermediary_server1, MPI_Comm* intermediary_server2, MPI_Comm* intermediary_server3) {
+    if (rank == 1 || group_number == 1) {
+        MPI_Comm_free(intermediary_server1);
+    }
+
+    if (rank == 2 || group_number == 2) {
+        MPI_Comm_free(intermediary_server2);
+    }
+
+    if (rank == 3 || group_number == 3) {
+        MPI_Comm_free(intermediary_server3);
+    }
+}
+
+void group_members(int rank, int group_server_size, int group_server_rank, MPI_Comm server_group, int group_number){
+
+    int group_members[group_server_size];
+        MPI_Gather(&rank, 1, MPI_INT, group_members, 1, MPI_INT, 0, server_group);
+
+        if (group_number != -1) {
+            if (group_server_rank == 0) {
+                printf("Group %d includes the following processes: ", group_number);
+                for (int i = 0; i < group_server_size; i++) {
+                    printf("%d ", group_members[i]);
+                }
+                printf("\n\n");
+            }
+        }
+
+}
