@@ -7,7 +7,6 @@
 #include "header_processes.h"
 #include "processes_functions.c"
 
-
 int main(int argc, char *argv[]) {
     MPI_Init(&argc, &argv);
 
@@ -19,191 +18,127 @@ int main(int argc, char *argv[]) {
 
     float global_message[4];
 
+    // Determine the group number for the current process
     group_number = determineGroupNumber(rank);
 
     MPI_Comm server_group;
+    // Split the communicator into subgroups based on group_number
     MPI_Comm_split(MPI_COMM_WORLD, group_number, rank, &server_group);
 
     int group_server_rank;
     int group_server_size;
 
+    // Get information about the subgroup
     getGroupInfo(server_group, &group_server_rank, &group_server_size);
- 
+
+    // Check if there are enough processes for the program to run
     if (size < 7) {
         if (rank == 0) {
             printf("This program requires at least 7 processes.\n");
         }
     } else {
-
-        if (rank == 0)
-        {
-           initializeGlobalMessage(global_message, rank, group_server_rank);
-
+        // Initialization of global message for rank 0
+        if (rank == 0) {
+            initializeGlobalMessage(global_message, rank, group_server_rank);
         }
 
-        if(rank>=0 && rank <=3){
-
-         MPI_Bcast(&global_message, 4, MPI_FLOAT, 0,server_group);
-    }
-
-    intermediary_server_number_associated = getIntermediaryServerNumber(rank, group_number);
-    
-    MPI_Comm intermediary_server1;
-    MPI_Comm_split(MPI_COMM_WORLD, intermediary_server_number_associated, rank, &intermediary_server1);
-
-    int group1_rank;
-    int group1_size;
-
-    getGroupInfo(intermediary_server1, &group1_rank, &group1_size);
-  
-    broadcastMessage(rank, group_number, global_message, intermediary_server1);
-    
-    MPI_Comm intermediary_server2;
-    MPI_Comm_split(MPI_COMM_WORLD, intermediary_server_number_associated, rank, &intermediary_server2);
-
-    int group2_rank;
-    int group2_size;
-
-    getGroupInfo(intermediary_server2, &group2_rank, &group2_size);
-
-    broadcastMessage(rank, group_number, global_message, intermediary_server2);
-    
-    MPI_Comm intermediary_server3;
-    MPI_Comm_split(MPI_COMM_WORLD, intermediary_server_number_associated, rank, &intermediary_server3);
-
-    int group3_rank;
-    int group3_size;
-
-    getGroupInfo(intermediary_server3, &group3_rank, &group3_size); 
-
-    broadcastMessage(rank, group_number, global_message, intermediary_server3);
-    
-    printIntermediaryServerProcessDetails(rank, intermediary_server_number_associated, group_number, group1_rank, group2_rank, group3_rank, group_server_rank, global_message);
-
-    printLocalDeviceDetails(rank, group_number, intermediary_server_number_associated, group1_rank, group2_rank, group3_rank, global_message);
-
-    int label = 0;
-    int media = 0;
-
-    media = group_calculations(group_number, rank, media);
-    
-
-    int gathered_array0[group_server_size]; // The grooup 0 root process will collect all the arrays into this array of float array
-    int gathered_array1[group1_size]; // The group 1 root process will collect all the arrays into this array of float arrays
-    int gathered_array2[group2_size]; // The group 2root process will collect all the arrays into this array of float arrays
-    int gathered_array3[group3_size]; // The group 3 process will collect all the arrays into this array of float arrays
-        
-
-    // Chiamate alla funzione per ogni gruppo
-    gather_and_print_values(rank, group_number, media, gathered_array1, group1_rank, group1_size, intermediary_server1);
-    gather_and_print_values(rank, group_number, media, gathered_array2, group2_rank, group2_size, intermediary_server2);
-    gather_and_print_values(rank, group_number, media, gathered_array3, group3_rank, group3_size, intermediary_server3);
-
-    int avg_intermediary_server1 = 0;
-    int avg_intermediary_server2 = 0;
-    int avg_intermediary_server3 = 0;
-
-        if (rank == 1)
-        {
-            int sum = 0;
-
-            for (int i = 0; i < 4; i++) {
-                sum += gathered_array1[i];
-            }
-
-             avg_intermediary_server1 = sum/3;
-             printf("Average group 1: %d\n\n",avg_intermediary_server1);
+        // Broadcast the global message to all processes in the subgroup
+        if (rank >= 0 && rank <= 3) {
+            MPI_Bcast(&global_message, 4, MPI_FLOAT, 0, server_group);
         }
 
-        if (rank == 2)
-        {
-            int sum = 0;
+        // Determine the intermediary server number associated with the current process
+        intermediary_server_number_associated = getIntermediaryServerNumber(rank, group_number);
 
-            for (int i = 0; i < 4; i++) {
-                sum += gathered_array2[i];
-            }
+        MPI_Comm intermediary_server1;
+        // Split the communicator into sub-communicators based on intermediary_server_number_associated
+        MPI_Comm_split(MPI_COMM_WORLD, intermediary_server_number_associated, rank, &intermediary_server1);
 
-            avg_intermediary_server2 = sum/3;
-            printf("Average group 2: %d\n\n",avg_intermediary_server2);
+        int group1_rank;
+        int group1_size;
+
+        // Get information about the sub-communicator
+        getGroupInfo(intermediary_server1, &group1_rank, &group1_size);
+
+        // Broadcast the global message within the sub-communicator
+        broadcastMessage(rank, group_number, global_message, intermediary_server1);
+
+        MPI_Comm intermediary_server2;
+        MPI_Comm_split(MPI_COMM_WORLD, intermediary_server_number_associated, rank, &intermediary_server2);
+
+        int group2_rank;
+        int group2_size;
+
+        getGroupInfo(intermediary_server2, &group2_rank, &group2_size);
+
+        broadcastMessage(rank, group_number, global_message, intermediary_server2);
+
+        MPI_Comm intermediary_server3;
+        MPI_Comm_split(MPI_COMM_WORLD, intermediary_server_number_associated, rank, &intermediary_server3);
+
+        int group3_rank;
+        int group3_size;
+
+        getGroupInfo(intermediary_server3, &group3_rank, &group3_size);
+
+        broadcastMessage(rank, group_number, global_message, intermediary_server3);
+
+        // Print details about intermediary server processes
+        printIntermediaryServerProcessDetails(rank, intermediary_server_number_associated, group_number, group1_rank, group2_rank, group3_rank, group_server_rank, global_message);
+
+        // Print details about local device
+        printLocalDeviceDetails(rank, group_number, intermediary_server_number_associated, group1_rank, group2_rank, group3_rank, global_message);
+
+        int label = 0;
+        int average = 0;
+
+        // Perform group calculations and update average
+        average = group_calculations(group_number, rank, average);
+
+        int gathered_array0[group_server_size]; // The group 0 root process will collect all the arrays into this array of float array
+        int gathered_array1[group1_size]; // The group 1 root process will collect all the arrays into this array of float arrays
+        int gathered_array2[group2_size]; // The group 2 root process will collect all the arrays into this array of float arrays
+        int gathered_array3[group3_size]; // The group 3 process will collect all the arrays into this array of float arrays
+
+        // Gather values from each group and print
+        if (rank == 1 || group_number == 1) {
+            gatherAndPrintValues(rank, group_number, average, gathered_array1, group1_rank, group1_size, intermediary_server1, intermediary_server_number_associated);
+        }
+        if (rank == 2 || group_number == 2) {
+            gatherAndPrintValues(rank, group_number, average, gathered_array2, group2_rank, group2_size, intermediary_server2, intermediary_server_number_associated);
+        }
+        if (rank == 3 || group_number == 3) {
+            gatherAndPrintValues(rank, group_number, average, gathered_array3, group3_rank, group3_size, intermediary_server3, intermediary_server_number_associated);
         }
 
-         if (rank == 3)
-        {
-            int sum = 0;
+        int avg_intermediary_server1 = 0;
+        int avg_intermediary_server2 = 0;
+        int avg_intermediary_server3 = 0;
 
-            for (int i = 0; i < 4; i++) {
-                sum += gathered_array3[i];
-            }
-
-            avg_intermediary_server3 = sum/3;
-            printf("Average group 3: %d \n\n",avg_intermediary_server3);
+        // Calculate and print average values for each intermediary server
+        if (intermediary_server_number_associated == 1) {
+            avg_intermediary_server1 = calculateAndPrintAverage(rank, gathered_array1, avg_intermediary_server1);
         }
-        
+        if (intermediary_server_number_associated == 2) {
+            avg_intermediary_server2 = calculateAndPrintAverage(rank, gathered_array2, avg_intermediary_server2);
+        }
+        if (intermediary_server_number_associated == 3) {
+            avg_intermediary_server3 = calculateAndPrintAverage(rank, gathered_array3, avg_intermediary_server3);
+        }
+
         int final_gather[3];
 
-        if (rank == 0 || group_number == 0)
-        {
-            MPI_Gather(&avg_intermediary_server1, 1, MPI_INT, &gathered_array0, 1, MPI_INT, 0, server_group);
-            final_gather[1] = gathered_array0[1];
-            
-            MPI_Gather(&avg_intermediary_server2, 1, MPI_INT, &gathered_array0, 1, MPI_INT, 0, server_group);
-            final_gather[2] = gathered_array0[2];
+        // Gather and print final labels for the point
+        gatherAndPrintFinalLabel(rank, group_number, gathered_array0, final_gather, avg_intermediary_server1, avg_intermediary_server2, avg_intermediary_server3, group_server_rank, group_server_size, server_group);
 
-            MPI_Gather(&avg_intermediary_server3, 1, MPI_INT, &gathered_array0, 1, MPI_INT, 0, server_group);
-            final_gather[3] = gathered_array0[3];
-            
-           if (group_server_rank == 0) {
-            printf("Values received from all group processes:\n");
+        // Free intermediary communicators
+        freeIntermediaryCommunicator(rank, group_number, &intermediary_server1, &intermediary_server2, &intermediary_server3);
 
-            for (int i = 1; i < group_server_size; i++) {
-                printf("Average group %d: %d\n", i, final_gather[i]);
-            }
-                    printf("\n");
-                    
-                    int sum = 0;
-
-                    for (int i = 1; i < 4; i++) {
-                        
-                        sum += final_gather[i];
-                     }
-            int final_lable = 0;
-             final_lable= sum/3;
-            printf("Final lable for the point: %d \n\n",final_lable);
-
-                }
-
-                printf("\n");    
-        }
-
-         if (rank == 1 || group_number == 1)
-        {
-            MPI_Comm_free(&intermediary_server1);
-        }
-    
-        if (rank == 2 || group_number == 2)
-        {
-            MPI_Comm_free(&intermediary_server2); 
-        }
-    
-        if (rank == 3 || group_number == 3)
-        {
-             MPI_Comm_free(&intermediary_server3); 
-        }
-
-        int group_members[group_server_size];
-        MPI_Gather(&rank, 1, MPI_INT, group_members, 1, MPI_INT, 0, server_group);
-
-        if (group_number != -1) {
-            if (group_server_rank == 0) {
-                printf("Group %d includes the following processes: ", group_number);
-                for (int i = 0; i < group_server_size; i++) {
-                    printf("%d ", group_members[i]);
-                }
-                printf("\n\n");
-            }
-        }
+        // Get group members
+        group_members(rank, group_server_size, group_server_rank, server_group, group_number);
     }
 
+    // Finalize MPI
     MPI_Finalize();
     return 0;
 }
