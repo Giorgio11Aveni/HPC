@@ -9,15 +9,17 @@
 
 
 // Struttura dati per passare l'ID del thread
+
 typedef struct {
+    int mpiRank;
     int threadID;
     char** rows;
     int rowCount;
 } ThreadData;
 
 // Funzione eseguita dai thread
-void *calcolaNumero(void *arg);
+void *processRows(void *arg);
 
-int group_calculations(int group_number, int rank, int media);
+int group_calculations(int group_number, int rank, int media, int size);
 
 #endif // FUNCTIONS_H
