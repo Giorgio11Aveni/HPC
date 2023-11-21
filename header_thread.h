@@ -6,6 +6,8 @@
 #define FUNCTIONS_H
 
 #define MAX_LINE_LENGTH 1024
+#define MAX_THREADS 3
+#define MAX_ELEMENTS_IN_ROW 4
 
 
 // Struttura dati per passare l'ID del thread
@@ -13,8 +15,9 @@
 typedef struct {
     int mpiRank;
     int threadID;
-    char** rows;
     int rowCount;
+    float*** rows;
+    pthread_mutex_t mutex;  // Aggiunto mutex per sincronizzazione della stampa
 } ThreadData;
 
 // Funzione eseguita dai thread
