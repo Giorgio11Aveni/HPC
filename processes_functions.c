@@ -3,13 +3,12 @@
 #include <mpi.h>
 
 void initializeGlobalMessage(float global_message[4], int rank, int group_server_rank) {
-    if (rank == 0) {
-        // Process with global rank 0 initializes the message
-        global_message[0] = 10.0;
-        global_message[1] = 11.0;
-        global_message[2] = 12.0;
-        global_message[3] = 13.0;
-
+    // Initialization of global message for rank 0
+        if (rank == 0) {
+        // Input 4 float numbers from the user
+        for (int i = 0; i < 4; ++i) {
+            scanf("%f", &global_message[i]);
+        }
         printf("Process rank %d.\nCentral server.\nRank in the group: %d.\nMessage to send: %f %f %f %f\n\n",
                rank, group_server_rank, global_message[0], global_message[1], global_message[2], global_message[3]);
     }
