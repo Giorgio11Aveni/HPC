@@ -1,84 +1,99 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
 #include <pthread.h>
 
-#define MAX_LINE_LENGTH 1024
-#define MAX_FIELDS 4
+#define NTHREADS 15
+#define NTRAIN 135
+#define NFEATURES 4
+#define X_TRAIN_PATH "C:/Users/tecnico/Desktop/MPI/MS_MPI/Programs/Federated_Parallel_KNN/X_train.csv"
 
-typedef struct {
-    int threadID;
-    char** rows;
-    int rowCount;
-} ThreadData;
+void checkFile(FILE *f) {
+    if (f == NULL) {
+        printf("Error while reading file\n");
+        exit(1);
+    }
+}
 
-void* processRows(void* arg) {
-    ThreadData* data = (ThreadData*)arg;
+float *getFloatMat(int m, int n) {
+    float *mat = NULL;
+    mat = (float *)calloc(m * n, sizeof(float));
 
-    printf("Thread %d processing %d rows\n", data->threadID, data->rowCount);
+    return mat;
+}
 
-    for (int i = 0; i < data->rowCount; ++i) {
-        // Esegfaui l'elaborazione della riga
-        char* row = data->rows[i];
-        printf("Thread %d - Row %d: %s\n", data->threadID, i + 1, row);
+float *initFeatures(char path[], int start_row, int end_row) {
+    int index = 0;
+    FILE *f = NULL;
+    float *mat = NULL;
 
-        // Libera la memoria allocata per la riga
-        free(row);
+    mat = getFloatMat(end_row - start_row + 1, NFEATURES);
+
+    f = fopen(path, "r");
+    checkFile(f);
+
+    // Skippa le righe prima di start_row
+    for (int i = 0; i < start_row; i++)
+        while (fgetc(f) != '\n')
+            ;
+
+    // Leggi i dati dalla riga start_row alla riga end_row
+    for (int i = start_row; i <= end_row; i++) {
+        for (int j = 0; j < NFEATURES; j++) {
+            fscanf(f, "%f%*c", &mat[index]);
+            index++;
+        }
     }
 
-    // Libera la memoria allocata per i dati del thread
-    free(data->rows);
-    free(data);
+    fclose(f);
+    return mat;
+}
+
+struct ThreadData {
+    int thread_id;
+    int start_row;
+    int end_row;
+    float *x_train;
+};
+
+void *threadFunction(void *arg) {
+    struct ThreadData *data = (struct ThreadData *)arg;
+
+    // Inizializza la matrice per il thread corrente
+    data->x_train = initFeatures(X_TRAIN_PATH, data->start_row, data->end_row);
+
+    // Stampa la matrice per il thread corrente
+    printf("Thread %d:\n", data->thread_id);
+    for (int i = 0; i <= data->end_row - data->start_row; i++) {
+        for (int j = 0; j < NFEATURES; j++) {
+            printf("%.2f ", data->x_train[i * NFEATURES + j]);
+        }
+        printf("\n\n");
+    }
+
+    // Libera la memoria allocata per la matrice
+    free(data->x_train);
 
     pthread_exit(NULL);
 }
 
-int main() {
-    FILE* file = fopen("C:/Users/tecnico/Desktop/MPI/MS_MPI/Programs/Parallel-KNN_example/Knn-MPI/X_train2.csv", "r");
-    if (!file) {
-        perror("Errore nell'apertura del file");
-        return 1;
+int main(int argc, char const *argv[]) {
+    pthread_t threads[NTHREADS];
+    struct ThreadData thread_data[NTHREADS];
+
+    int rows_per_thread = NTRAIN / NTHREADS;
+    
+    // Creazione e avvio dei thread
+    for (int i = 0; i < NTHREADS; i++) {
+        thread_data[i].thread_id = i;
+        thread_data[i].start_row = i * rows_per_thread + 1;
+        thread_data[i].end_row = (i + 1) * rows_per_thread;
+        pthread_create(&threads[i], NULL, threadFunction, (void *)&thread_data[i]);
     }
 
-    int threadCount = 6;  // Specifica il numero di thread desiderato
-    int rowCount = 30;   // Specifica il numero totale di righe nel file
-    int rowsPerThread = rowCount / threadCount;
-
-    pthread_t threads[threadCount];
-
-    for (int i = 0; i < threadCount; ++i) {
-        ThreadData* data = (ThreadData*)malloc(sizeof(ThreadData));
-        data->threadID = i + 1;
-        data->rowCount = rowsPerThread;
-
-        // Alloca memoria per le righe del thread
-        data->rows = (char**)malloc(rowsPerThread * sizeof(char*));
-
-        for (int j = 0; j < rowsPerThread; ++j) {
-            char line[MAX_LINE_LENGTH];
-            if (fgets(line, sizeof(line), file) == NULL) {
-                perror("Errore nella lettura del file");
-                fclose(file);
-                return 1;
-            }
-
-            // Alloca memoria per la copia della riga
-            data->rows[j] = strdup(line);
-        }
-
-        // Crea il thread
-        if (pthread_create(&threads[i], NULL, processRows, (void*)data) != 0) {
-            perror("Errore nella creazione del thread");
-            return 1;
-        }
-    }
-
-    // Attendi la terminazione di tutti i thread
-    for (int i = 0; i < threadCount; ++i) {
+    // Attesa della terminazione dei thread
+    for (int i = 0; i < NTHREADS; i++) {
         pthread_join(threads[i], NULL);
     }
-
-    fclose(file);
 
     return 0;
 }
