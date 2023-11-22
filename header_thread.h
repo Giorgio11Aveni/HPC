@@ -5,20 +5,21 @@
 #ifndef FUNCTIONS_H
 #define FUNCTIONS_H
 
-#define MAX_LINE_LENGTH 1024
-#define MAX_THREADS 3
-#define MAX_ELEMENTS_IN_ROW 4
+#define NTHREADS 3
+#define NTRAIN 10
+#define NFEATURES 4
+#define X_TRAIN_PATH "C:/Users/tecnico/Desktop/UniME/Materie/HPC/MPI/Programs/Federated_Parallel_KNN/X_train.csv"
 
 
 // Struttura dati per passare l'ID del thread
 
-typedef struct {
-    int mpiRank;
-    int threadID;
-    int rowCount;
-    float*** rows;
-    pthread_mutex_t mutex;  // Aggiunto mutex per sincronizzazione della stampa
-} ThreadData;
+struct ThreadData {
+    int thread_id;
+    float *x_train;
+    int start_row;
+    int end_row;
+    pthread_mutex_t mutex; // Mutex per la sincronizzazione della console
+};
 
 // Funzione eseguita dai thread
 void *processRows(void *arg);
