@@ -5,120 +5,105 @@
 #include <stdlib.h>
 #include <string.h>
 #include <mpi.h>
-#include <windows.h>
+
+void checkFile(FILE *f) {
+    if (f == NULL) {
+        printf("Error while reading file\n");
+        exit(1);
+    }
+}
+
+float *getFloatMat(int m, int n) {
+    float *mat = NULL;
+    mat = (float*)calloc(m * n, sizeof(float));
+
+    return mat;
+}
+
+float *initFeatures(char path[], int start_row, int end_row) {
+    int index = 0;
+    FILE *f = NULL;
+    float *mat = NULL;
+
+    mat = getFloatMat(end_row - start_row + 1, NFEATURES);
+
+    f = fopen(path, "r");
+    checkFile(f);
+
+    // Leggi il file fino alla fine o fino a raggiungere la riga finale
+    for (int i = 0; i < end_row && fscanf(f, "%f%*c", &mat[index]) == 1; i++) {
+        // Ignora le righe fino a raggiungere la riga di inizio
+        if (i < start_row) {
+            continue;
+        }
+
+        index++;
+    }
+
+    fclose(f);
+    return mat;
+}
 
 void* processRows(void* arg) {
-    ThreadData* data = (ThreadData*)arg;
 
-    printf("Process %d - Thread %d processing %d rows\n", data->mpiRank, data->threadID, data->rowCount);
+     struct ThreadData *data = (struct ThreadData *)arg;
 
-    for (int i = 0; i < data->rowCount; ++i) {
-        pthread_mutex_lock(&data->mutex);  // Blocca l'accesso a stdout per gli altri thread
-        printf("Process %d - Thread %d - Row %d: ", data->mpiRank, data->threadID, i + 1);
+    // Inizializza la matrice per il thread corrente
+    data->x_train = initFeatures(X_TRAIN_PATH, data->start_row, data->end_row);
 
-        float* row = data->rows[i][data->threadID - 1];
-        for (int k = 0; k < MAX_ELEMENTS_IN_ROW; ++k) {
-            printf("%.4f ", row[k]);
+    // Acquisisce il lock del mutex prima di stampare
+    pthread_mutex_lock(&data->mutex);
+
+    // Stampa la matrice per il thread corrente
+    printf("Thread %d - Rows %d to %d:\n", data->thread_id, data->start_row, data->end_row);
+    for (int i = 0; i <= data->end_row - data->start_row; i++) {
+        for (int j = 0; j < NFEATURES; j++) {
+            printf("%.2f ", data->x_train[i * NFEATURES + j]);
         }
         printf("\n");
-
-        pthread_mutex_unlock(&data->mutex);  // Sblocca l'accesso a stdout per gli altri thread
-        Sleep(10);  // Aggiunto ritardo per evidenziare la concorrenza (può essere rimosso)
     }
 
-    for (int i = 0; i < data->rowCount; ++i) {
-        free(data->rows[i][data->threadID - 1]);
-    }
-    free(data->rows);
-    free(data);
+    // Rilascia il lock del mutex dopo la stampa
+    pthread_mutex_unlock(&data->mutex);
 
-    return NULL;
+    // Libera la memoria allocata per la matrice
+    free(data->x_train);
+
+    pthread_exit(NULL);
 }
 
 int group_calculations(int group_number, int rank, int media, int size) {
-    if (rank > 3) {
-        FILE* file = fopen("C:/Users/tecnico/Desktop/UniME/Materie/HPC/MPI/Programs/Multithreading/X_train.csv", "r");
-        if (!file) {
-            perror("Errore nell'apertura del file");
-            MPI_Abort(MPI_COMM_WORLD, 1);
-        }
+    
+    if (group_number == 1) {
 
-        int totalRowCount = 135;
-        int rowsPerProcess = totalRowCount / (size - 4);
-        int remainingRows = totalRowCount % (size - 4);
-        char line[MAX_LINE_LENGTH];
+        pthread_t threads[NTHREADS];
+        struct ThreadData thread_data[NTHREADS];
+        pthread_mutex_t console_mutex = PTHREAD_MUTEX_INITIALIZER; // Inizializza il mutex
 
-        int offset = (rank + size - 4) % size;
+        // Calcola il numero di righe che ogni thread deve elaborare
+        int rows_per_thread = NTRAIN / NTHREADS;
 
-        for (int i = 0; i < offset * rowsPerProcess + (offset < remainingRows ? offset : remainingRows); ++i) {
-            if (fgets(line, sizeof(line), file) == NULL) {
-                perror("Errore nella lettura del file");
-                fclose(file);
-                MPI_Abort(MPI_COMM_WORLD, 1);
+        // Inizializza la struttura dati dei thread con il mutex e gli intervalli di righe
+        for (int i = 0; i < NTHREADS; i++) {
+            thread_data[i].thread_id = i;
+            thread_data[i].mutex = console_mutex;
+            thread_data[i].start_row = i * rows_per_thread + 1;
+            thread_data[i].end_row = (i + 1) * rows_per_thread;
+
+            // L'ultimo thread può avere un intervallo di righe più piccolo se NTRAIN non è multiplo di NTHREADS
+            if (i == NTHREADS - 1) {
+                thread_data[i].end_row = NTRAIN;
             }
         }
 
-        pthread_t threads[MAX_THREADS];
-        ThreadData* data[MAX_THREADS];
-
-        int rowsPerThread[MAX_THREADS];
-        int remainingRowsToDistribute = rowsPerProcess;
-        for (int t = 0; t < MAX_THREADS; ++t) {
-            rowsPerThread[t] = remainingRowsToDistribute / (MAX_THREADS - t);
-            remainingRowsToDistribute -= rowsPerThread[t];
+        // Creazione e avvio dei thread
+        for (int i = 0; i < NTHREADS; i++) {
+            pthread_create(&threads[i], NULL, processRows, (void *)&thread_data[i]);
         }
 
-        for (int t = 0; t < MAX_THREADS; ++t) {
-            data[t] = (ThreadData*)malloc(sizeof(ThreadData));
-            data[t]->mpiRank = rank;
-            data[t]->threadID = t + 1;
-            data[t]->rowCount = rowsPerThread[t];
-            data[t]->rows = (float***)malloc(data[t]->rowCount * sizeof(float**));
-            pthread_mutex_init(&data[t]->mutex, NULL);  // Inizializza il mutex
-
-            for (int i = 0; i < data[t]->rowCount; ++i) {
-                data[t]->rows[i] = (float**)malloc(MAX_ELEMENTS_IN_ROW * sizeof(float*));
-
-                if (fgets(line, sizeof(line), file) == NULL) {
-                    perror("Errore nella lettura del file");
-                    fclose(file);
-                    MPI_Abort(MPI_COMM_WORLD, 1);
-                }
-                
-                char* token = strtok(line, ",");
-                int k = 0;
-                while (token != NULL && k < MAX_ELEMENTS_IN_ROW) {
-                     if (strcmp(token, "Errore") == 0) {
-    printf("Errore nella conversione della stringa a float: Token non valido\n");
-    fclose(file);
-    MPI_Abort(MPI_COMM_WORLD, 1);
-                     }
-                    float value;
-                    if (sscanf(token, "%f", &value) != 1) {
-                        perror("Errore nella conversione della stringa a float");
-                        fclose(file);
-                        MPI_Abort(MPI_COMM_WORLD, 1);
-                    }
-                    data[t]->rows[i][k] = (float*)malloc(sizeof(float));
-                    *(data[t]->rows[i][k]) = value;
-                    token = strtok(NULL, ",");
-                    k++;
-                }
-            }
+        // Attesa della terminazione dei thread
+        for (int i = 0; i < NTHREADS; i++) {
+            pthread_join(threads[i], NULL);
         }
-
-        for (int t = 0; t < MAX_THREADS; ++t) {
-            if (pthread_create(&threads[t], NULL, processRows, (void*)data[t]) != 0) {
-                perror("Errore nella creazione del thread");
-                MPI_Abort(MPI_COMM_WORLD, 1);
-            }
-        }
-
-        for (int t = 0; t < MAX_THREADS; ++t) {
-            pthread_join(threads[t], NULL);
-            pthread_mutex_destroy(&data[t]->mutex);  // Distruggi il mutex dopo che il thread ha terminato
-        }
-
-        fclose(file);
     }
 }
