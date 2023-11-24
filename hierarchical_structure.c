@@ -93,7 +93,7 @@ int main(int argc, char *argv[]) {
         int average = 0;
 
         // Perform group calculations and update average
-        average = group_calculations(group_number, rank, average, size);
+        average = group_calculations(rank, size);
         
         
         int gathered_array0[group_server_size]; // The group 0 root process will collect all the arrays into this array of float array
