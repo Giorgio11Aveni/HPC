@@ -2,13 +2,14 @@
 
 #include <pthread.h>
 
-#ifndef FUNCTIONS_H
-#define FUNCTIONS_H
+#ifndef HEADER_THREAD_H
+#define HEADER_THREAD_H
 
 #define NTHREADS 5
 #define NTRAIN 135
 #define NFEATURES 4
-#define X_TRAIN_PATH "C:/Users/tecnico/Desktop/UniME/Materie/HPC/MPI/Programs/Federated_Parallel_KNN/X_train.csv"
+#define MAX_ROW_LENGTH 1024
+#define X_TRAIN_PATH "C:/Users/tecnico/Desktop/MPI/MS_MPI/Programs/Federated_Parallel_KNN/X_train.csv"
 
 // Struttura dati per passare argomenti ai thread
 typedef struct {
@@ -19,8 +20,8 @@ typedef struct {
     float *local_matrix;
 } ThreadData;
 // Funzione eseguita dai thread
-void *processRows(void *arg);
+void *threadFunction(void *arg);
 
 int group_calculations(int rank, int size);
 
-#endif // FUNCTIONS_H
+#endif // HEADER_THREAD_H
