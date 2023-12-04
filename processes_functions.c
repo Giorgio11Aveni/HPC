@@ -85,9 +85,9 @@ void printLocalDeviceDetails(int rank, int group_number, int intermediary_server
     }
 }
 
-void gatherAndPrintValues(int rank, int group_number, int average, int* gathered_array, int group_rank, int group_size, MPI_Comm intermediary_server, int intermediary_server_associated) {
+void gatherAndPrintValues(int rank, int group_number, int label, int* gathered_array, int group_rank, int group_size, MPI_Comm intermediary_server, int intermediary_server_associated) {
         
-    MPI_Gather(&average, 1, MPI_INT, gathered_array, 1, MPI_INT, 0, intermediary_server);
+    MPI_Gather(&label, 1, MPI_INT, gathered_array, 1, MPI_INT, 0, intermediary_server);
 
     if ((group_rank == 0 && intermediary_server_associated == 1) || (group_rank == 0 && intermediary_server_associated == 2) || (group_rank == 0 && intermediary_server_associated == 3)) {
         printf("Values received from group %d processes:\n", intermediary_server_associated);
@@ -98,29 +98,40 @@ void gatherAndPrintValues(int rank, int group_number, int average, int* gathered
     }
 }
 
-int calculateAndPrintAverage(int rank, int gathered_array[], int avg_intermediary_server) {
-    int sum = 0;
+int calculateAndPrintAverage(int rank, int gathered_array[], int avg_intermediary_server, int group_size) {
+      if (rank>0 && rank<=3){
 
-    for (int i = 0; i < 4; i++) {
-        sum += gathered_array[i];
-    }
+        // Calcola l'etichetta più frequente
+        int *label_counts = calloc(3, sizeof(int));
+        int max_label = -1, max_count = 0;
 
-    switch(rank) {
+        for (int i = 1; i < group_size; i++) {
+            int current_label = gathered_array[i];
+            label_counts[current_label]++;
+            if (label_counts[current_label] > max_count) {
+                max_count = label_counts[current_label];
+                max_label = current_label;
+            }
+            
+        }
+
+        switch(rank) {
         case 1:
-            avg_intermediary_server = sum / 3;
-            printf("Average group 1: %d\n\n", avg_intermediary_server);
+            avg_intermediary_server = max_label;
+            printf("Label group 1: %d\n\n", avg_intermediary_server);
             return avg_intermediary_server;
         case 2:
-            avg_intermediary_server = sum / 3;
-            printf("Average group 2: %d\n\n", avg_intermediary_server);
+            avg_intermediary_server = max_label;
+            printf("Label group 2: %d\n\n", avg_intermediary_server);
             return avg_intermediary_server;
         case 3:
-            avg_intermediary_server = sum / 3;
-            printf("Average group 3: %d\n\n", avg_intermediary_server);
+            avg_intermediary_server = max_label;
+            printf("Label group 3: %d\n\n", avg_intermediary_server);
             return avg_intermediary_server;
         default:
             
     }
+      }
 }
 
 void gatherAndPrintFinalLabel(int rank, int group_number, int* gathered_array0, int* final_gather, int avg_intermediary_server1, int avg_intermediary_server2, int avg_intermediary_server3, int group_server_rank, int group_server_size, MPI_Comm server_group) {
@@ -136,22 +147,28 @@ void gatherAndPrintFinalLabel(int rank, int group_number, int* gathered_array0, 
     final_gather[3] = gathered_array0[3];
 
         if (group_server_rank == 0) {
-            printf("Values received from all group processes:\n");
+            printf("Labels received from all group processes:\n");
 
             for (int i = 1; i < group_server_size; i++) {
-                printf("Average group %d: %d\n", i, final_gather[i]);
+                printf("Label group %d: %d\n", i, final_gather[i]);
             }
 
             printf("\n");
 
-            int sum = 0;
+            // Calcola l'etichetta più frequente
+            int *label_counts = calloc(3, sizeof(int));
+            int max_label = -1, max_count = 0;
 
-            for (int i = 1; i <= 3; i++) {
-                sum += final_gather[i];
+            for (int i = 1; i < group_server_size; i++) {
+                int current_label = final_gather[i];
+                label_counts[current_label]++;
+                if (label_counts[current_label] > max_count) {
+                    max_count = label_counts[current_label];
+                    max_label = current_label;
+                }
+                
             }
-
-            int final_label = sum / 3;
-            printf("Final label for the point: %d \n\n", final_label);
+            printf("Final label for the point: %d \n\n", max_label);
         }
 
         printf("\n");
