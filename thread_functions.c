@@ -5,84 +5,88 @@
 #include <stdlib.h>
 #include <string.h>
 #include <mpi.h>
-
 #include <math.h>
 
-// ...
+// Definisci una funzione di confronto per qsort
+int compareDistances(const void *a, const void *b) {
+    // Confronta i valori di distanza
+    float distanceA = *((float *)a);
+    float distanceB = *((float *)b);
 
-void *threadFunction(void *arg) {
-    ThreadData *data = (ThreadData *)arg;
-
-    printf("Thread %d del processo stampa righe da %d a %d:\n", data->thread_id, data->start_row, data->end_row);
-
-    for (int i = data->start_row; i < data->end_row; i++) {
-        printf("Etichetta: %d\n, Dati: ", data->label_matrix[i]);
-        for (int j = 0; j < data->num_columns; j++) {
-            printf("%f \n", data->data_matrix[i * data->num_columns + j]);
-
-            // Calcola la distanza euclidea tra il punto della matrice e il punto inserito manualmente
-            float point_distance = sqrt(pow(data->data_matrix[i * data->num_columns + j] - data->test_point[i+j], 2));
-            printf("Distanza dal punto utente: %f \n", point_distance);
-        }
-        printf("\n");
-    }
-
-    pthread_exit(NULL);
+    if (distanceA < distanceB) return -1;
+    else if (distanceA > distanceB) return 1;
+    else return 0;
 }
 
+void openAndCheckCSVFiles(const char *data_filename, const char *label_filename, FILE **data_file, FILE **label_file){
 
-int group_calculations(int rank, int size, char *data_filename, char *label_filename, float *test_point) {
-    
-    if (rank>3)
-    {
-      // Open the CSV file
-    FILE *data_file = fopen(data_filename, "r");
-    FILE *label_file = fopen(label_filename, "r");
+    // Open the CSV file
+    *data_file = fopen(data_filename, "r");
+    *label_file = fopen(label_filename, "r");
 
-    if (data_file == NULL || label_file == NULL) {
+    // Check for errors in file opening
+    if (*data_file == NULL || *label_file == NULL) {
         fprintf(stderr, "Errore nell'apertura dei file CSV.\n");
+
+        // Clean up and abort MPI
+        if (*data_file != NULL) fclose(*data_file);
+        if (*label_file != NULL) fclose(*label_file);
         MPI_Abort(MPI_COMM_WORLD, 1);
     }
+}
 
-    // Determina il numero totale di righe nei file
-    int total_rows_data = 0;
-    char line_data[MAX_ROW_LENGTH];
-    while (fgets(line_data, MAX_ROW_LENGTH, data_file) != NULL) {
-        total_rows_data++;
+int countTotalRows(FILE *file, char *line) {
+    int total_rows = 0;
+
+    // Legge ciascuna riga dal file e incrementa il contatore
+    while (fgets(line, MAX_ROW_LENGTH, file) != NULL) {
+        total_rows++;
     }
 
-    int total_rows_label = 0;
-    char line_label[MAX_ROW_LENGTH];
-    while (fgets(line_label, MAX_ROW_LENGTH, label_file) != NULL) {
-        total_rows_label++;
-    }
+    // Riporta il numero totale di righe nel file
+    return total_rows;
+}
 
-    // Verifica che il numero di righe nei file sia lo stesso
+void checkEqualNumberRows(int total_rows_data, int total_rows_label){
+
     if (total_rows_data != total_rows_label) {
         fprintf(stderr, "Il numero di righe nei file di dati ed etichette non corrisponde.\n");
         MPI_Abort(MPI_COMM_WORLD, 1);
     }
+}
 
-        // Calculate the number of rows each process will read
-    int rows_per_process = total_rows_data / (size-4);
-    int remaining_rows = total_rows_data % (size-4);
+void calculateRowRange(int rank, int size, int total_rows_data, int *start_row, int *end_row) {
+    
+    // Calcola il numero di righe per processo e le righe rimanenti
+    int rows_per_process = total_rows_data / (size - 4);
+    int remaining_rows = total_rows_data % (size - 4);
 
-    // Calculate the portion of the file to be read for each process
-    int start_row = (rank - 4) * rows_per_process + ((rank - 4) < remaining_rows ? (rank - 4) : remaining_rows);
-    int end_row = start_row + rows_per_process + ((rank - 4) < remaining_rows ? 1 : 0);
+    // Calcola l'intervallo di righe da leggere per ogni processo
+    *start_row = (rank - 4) * rows_per_process + ((rank - 4) < remaining_rows ? (rank - 4) : remaining_rows);
+    *end_row = *start_row + rows_per_process + ((rank - 4) < remaining_rows ? 1 : 0);
+}
+
+void allocateMatrix(int start_row, int end_row, int *num_columns, float **data_matrix, int **label_matrix, float **all_distances, int *num_rows) {
+    *num_rows = end_row - start_row;
+    *num_columns = NFEATURES;
 
     // Alloca la matrice per memorizzare i dati letti da ciascun processo
-    int num_columns = 4;  // Numero di colonne nel tuo file CSV dei dati
-    int num_rows = end_row - start_row;
-    float *data_matrix = (float *)malloc(num_rows * num_columns * sizeof(float));
+    *data_matrix = (float *)malloc(*num_rows * *num_columns * sizeof(float));
 
     // Alloca la matrice per memorizzare le etichette lette da ciascun processo
-    int *label_matrix = (int *)malloc(num_rows * sizeof(int));
+    *label_matrix = (int *)malloc(*num_rows * sizeof(int));
+
+    // Alloca l'array per memorizzare le somme delle distanze per ogni dato
+    *all_distances = (float *)malloc(*num_rows * sizeof(float));
+}
+
+void readAssignedRows(FILE *data_file, FILE *label_file, int start_row, int end_row, int num_columns, float *data_matrix, int *label_matrix, char *line_data, char *line_label) {
     
-    // Leggi le righe assegnate al processo corrente
-    fseek(data_file, 0, SEEK_SET);  // Riporta il cursore al principio del file
+
+    // Riporta il cursore al principio del file
+    fseek(data_file, 0, SEEK_SET);
     fseek(label_file, 0, SEEK_SET);
-    
+
     for (int i = 0; i < end_row; i++) {
         if (i >= start_row) {
             // Leggi i dati
@@ -101,14 +105,10 @@ int group_calculations(int rank, int size, char *data_filename, char *label_file
             fgets(line_label, MAX_ROW_LENGTH, label_file);
         }
     }
+}
 
-    // Stampa l'ID del processo
-    printf("Processo %d:\n", rank);
-
-    // Allocazione e inizializzazione dati per i thread
-    pthread_t threads[3];
-    ThreadData thread_data[3];
-
+// Funzione per gestire l'al\-locazione e l'inizializzazione dei dati per i thread
+void initializeThreads(pthread_t *threads, ThreadData *thread_data, int num_rows, int num_columns, float *data_matrix, int *label_matrix, float *test_point, float *all_distances) {
     int thread_rows = num_rows / 3;
     int remaining_thread_rows = num_rows % 3;
 
@@ -120,6 +120,7 @@ int group_calculations(int rank, int size, char *data_filename, char *label_file
         thread_data[i].data_matrix = data_matrix;
         thread_data[i].label_matrix = label_matrix;
         thread_data[i].test_point = test_point;
+        thread_data[i].local_distances = all_distances;
 
         pthread_create(&threads[i], NULL, threadFunction, (void *)&thread_data[i]);
     }
@@ -127,11 +128,12 @@ int group_calculations(int rank, int size, char *data_filename, char *label_file
     for (int i = 0; i < 3; i++) {
         pthread_join(threads[i], NULL);
     }
+}
 
+void cleanupAndClose(FILE *data_file, FILE *label_file, float *data_matrix, int *label_matrix) {
     free(data_matrix);
     free(label_matrix);
+
     fclose(data_file);
     fclose(label_file);
-}
-    
 }
