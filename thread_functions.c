@@ -139,7 +139,7 @@ void initializeThreads(pthread_t *threads, ThreadData *thread_data, int num_rows
     int thread_rows = num_rows / 3;
     int remaining_thread_rows = num_rows % 3;
 
-    for (int i = 0; i < 3; i++) {
+    for (int i = 0; i < NTHREADS; i++) {
         thread_data[i].thread_id = i;
         thread_data[i].start_row = i * thread_rows + (i < remaining_thread_rows ? i : remaining_thread_rows);
         thread_data[i].end_row = thread_data[i].start_row + thread_rows + (i < remaining_thread_rows ? 1 : 0);
@@ -178,7 +178,7 @@ int predict(float *distance, int *labels) //topn < NCLASSES
 
 	free(neighborCount);
 	free(probability);
-
+    
 	return predicted_class;
 }
 
