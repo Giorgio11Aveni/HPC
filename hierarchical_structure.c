@@ -91,11 +91,9 @@ int main(int argc, char *argv[]) {
         printLocalDeviceDetails(rank, group_number, intermediary_server_number_associated, group1_rank, group2_rank, group3_rank, global_message);
 
         int label = 0;
-        int average = 0;
 
         // Perform group calculations and update average
-        average = group_calculations(rank, size, X_TRAIN_PATH, Y_TRAIN_PATH,global_message);
-        
+        label = knn(rank, size, X_TRAIN_PATH, Y_TRAIN_PATH,global_message);
         
         int gathered_array0[group_server_size]; // The group 0 root process will collect all the arrays into this array of float array
         int gathered_array1[group1_size]; // The group 1 root process will collect all the arrays into this array of float arrays
@@ -104,13 +102,13 @@ int main(int argc, char *argv[]) {
 
         // Gather values from each group and print
         if (rank == 1 || group_number == 1) {
-            gatherAndPrintValues(rank, group_number, average, gathered_array1, group1_rank, group1_size, intermediary_server1, intermediary_server_number_associated);
+            gatherAndPrintValues(rank, group_number, label, gathered_array1, group1_rank, group1_size, intermediary_server1, intermediary_server_number_associated);
         }
         if (rank == 2 || group_number == 2) {
-            gatherAndPrintValues(rank, group_number, average, gathered_array2, group2_rank, group2_size, intermediary_server2, intermediary_server_number_associated);
+            gatherAndPrintValues(rank, group_number, label, gathered_array2, group2_rank, group2_size, intermediary_server2, intermediary_server_number_associated);
         }
         if (rank == 3 || group_number == 3) {
-            gatherAndPrintValues(rank, group_number, average, gathered_array3, group3_rank, group3_size, intermediary_server3, intermediary_server_number_associated);
+            gatherAndPrintValues(rank, group_number, label, gathered_array3, group3_rank, group3_size, intermediary_server3, intermediary_server_number_associated);
         }
 
         int avg_intermediary_server1 = 0;
@@ -119,13 +117,13 @@ int main(int argc, char *argv[]) {
 
         // Calculate and print average values for each intermediary server
         if (intermediary_server_number_associated == 1) {
-            avg_intermediary_server1 = calculateAndPrintAverage(rank, gathered_array1, avg_intermediary_server1);
+            avg_intermediary_server1 = calculateAndPrintAverage(rank, gathered_array1, avg_intermediary_server1, group1_size);
         }
         if (intermediary_server_number_associated == 2) {
-            avg_intermediary_server2 = calculateAndPrintAverage(rank, gathered_array2, avg_intermediary_server2);
+            avg_intermediary_server2 = calculateAndPrintAverage(rank, gathered_array2, avg_intermediary_server2, group2_size);
         }
         if (intermediary_server_number_associated == 3) {
-            avg_intermediary_server3 = calculateAndPrintAverage(rank, gathered_array3, avg_intermediary_server3);
+            avg_intermediary_server3 = calculateAndPrintAverage(rank, gathered_array3, avg_intermediary_server3, group3_size);
         }
 
         int final_gather[3];
