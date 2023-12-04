@@ -7,6 +7,33 @@
 #include <mpi.h>
 #include <math.h>
 
+
+float *getFloatMat(int m, int n)
+{
+	float *mat = NULL;
+	mat = (float*)calloc(m*n, sizeof(float));
+
+	return mat;
+}
+
+float getMax(float *x, int n)
+{
+	int i;
+	float max = x[0];
+	int maxIndex = 0;
+
+	for(i=0; i<n; i++)
+	{
+		if (x[i] >= max)
+		{
+			max = x[i];
+			maxIndex = i;
+		}
+	}
+
+	return (float)maxIndex;
+}
+
 // Definisci una funzione di confronto per qsort
 int compareDistances(const void *a, const void *b) {
     // Confronta i valori di distanza
@@ -128,6 +155,31 @@ void initializeThreads(pthread_t *threads, ThreadData *thread_data, int num_rows
     for (int i = 0; i < 3; i++) {
         pthread_join(threads[i], NULL);
     }
+}
+
+int predict(float *distance, int *labels) //topn < NCLASSES
+{
+	float* neighborCount = getFloatMat(NCLASSES, 1);
+	float* probability = getFloatMat(NCLASSES, 1);
+
+	int i;
+
+	for(i=0; i<K; i++)
+		neighborCount[(int)labels[i]]++;
+
+	for(i=0; i<NCLASSES; i++)
+		probability[i] = neighborCount[i]*1.0/(float)K*1.0;
+	
+	int predicted_class = (int)getMax(neighborCount, NCLASSES);
+
+	printf("Probability:\n");
+	for(i=0; i<TOPN; i++)
+		printf("%s\t%f\n", class[i], probability[i]);
+
+	free(neighborCount);
+	free(probability);
+
+	return predicted_class;
 }
 
 void cleanupAndClose(FILE *data_file, FILE *label_file, float *data_matrix, int *label_matrix) {
