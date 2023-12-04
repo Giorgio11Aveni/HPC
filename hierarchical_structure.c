@@ -3,9 +3,10 @@
 #include <mpi.h>
 #include <pthread.h>
 #include "header_thread.h"
-#include "thread_functions.c"
 #include "header_processes.h"
 #include "processes_functions.c"
+#include "knn.c"
+
 
 int main(int argc, char *argv[]) {
     MPI_Init(&argc, &argv);
