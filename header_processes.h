@@ -20,7 +20,7 @@ void printLocalDeviceDetails(int rank, int group_number, int intermediary_server
 
 void gatherAndPrintValues(int rank, int group_number, int average, int* gathered_array, int group_rank, int group_size, MPI_Comm intermediary_server, int intermediary_server_associated);
 
-int calculateAndPrintAverage(int rank, int gathered_array[], int avg_intermediary_server);
+int calculateAndPrintAverage(int rank, int gathered_array[], int avg_intermediary_server, int group_size);
 
 void gatherAndPrintFinalLabel(int rank, int group_number, int* gathered_array0, int* final_gather, int avg_intermediary_server1, int avg_intermediary_server2, int avg_intermediary_server3, int group_server_rank, int group_server_size, MPI_Comm server_group);
 
