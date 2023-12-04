@@ -7,11 +7,12 @@
 #include <string.h>
 #include <mpi.h>
 #include <math.h>
+#include "mergeSort.h"
 
 void *threadFunction(void *arg) {
     ThreadData *data = (ThreadData *)arg;
 
-    printf("Thread %d del processo stampa righe da %d a %d:\n", data->thread_id, data->start_row, data->end_row);
+    printf("Thread %d del processo:\n\n", data->thread_id);
 
     for (int i = data->start_row; i < data->end_row; i++) {
         // Inizializza la somma delle distanze per ogni dato
@@ -19,11 +20,9 @@ void *threadFunction(void *arg) {
 
         for (int j = 0; j < data->num_columns; j++) {
             // Calcola la distanza euclidea tra il punto della matrice e il punto inserito manualmente
-            float matrix_value = data->data_matrix[i * data->num_columns + j];
             float test_point_value = data->test_point[j];
             float point_distance = sqrt(pow(data->data_matrix[i * data->num_columns + j] - data->test_point[j], 2));
 
-            printf("Distanza dal punto utente: %f \n", point_distance);
 
             // Aggiungi la distanza alla somma delle distanze per il dato corrente
             sum_distance += point_distance;
@@ -32,20 +31,15 @@ void *threadFunction(void *arg) {
         // Memorizza la somma delle distanze nell'array locale del thread
         data->local_distances[i - data->start_row] = sum_distance;
 
-        // Stampa la somma delle distanze per la riga corrente
-        printf("Somma delle distanze per la riga %d: %f\n", i, sum_distance);
+    
     }
 
-    // Ordina l'array delle distanze locali
     int num_rows = data->end_row - data->start_row;
-    qsort(data->local_distances, num_rows, sizeof(float), compareDistances);
+     // Ordina le distanze locali utilizzando mergeSort
+    mergeSort(data->local_distances, 0, data->end_row - data->start_row - 1, data->label_matrix);
 
-    // Stampa le distanze ordinate
-    printf("Thread %d - Distanze ordinate:\n", data->thread_id);
-    for (int i = 0; i < num_rows; i++) {
-        printf("%f\n ", data->local_distances[i]);
-    }
-    printf("\n");
+    int predicted_class = predict(data->local_distances, data->label_matrix);
+    printf("Predicted Class: %d\n\n", predicted_class);
 
     pthread_exit(NULL);
 }
@@ -76,7 +70,7 @@ int group_calculations(int rank, int size, char *data_filename, char *label_file
         int num_rows, num_columns;
 
         // Alloca la matrice per memorizzare i dati letti da ciascun processo
-        float *data_matrix,*all_distances ;
+        float *data_matrix, *all_distances ;
 
         // Alloca la matrice per memorizzare le etichette lette da ciascun processo
         int *label_matrix ;
