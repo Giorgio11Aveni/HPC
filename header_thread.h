@@ -9,6 +9,13 @@
 #define NTRAIN 135
 #define NFEATURES 4
 #define MAX_ROW_LENGTH 1024
+#define NCLASSES 3 						// number of classes/ labels 
+#define K 3 						  	// the hyperparameter K in KNN algorithm
+#define TOPN 3 					      	// Print the closest top N classes
+
+// Array of all classes/ label names 
+char class[NCLASSES][25] = {"Iris-setosa", "Iris-versicolor", "Iris-virginica"};
+
 #define X_TRAIN_PATH "C:/Users/tecnico/Desktop/UniME/Materie/HPC/MPI/Programs/Federated_Parallel_KNN/X_train.csv"
 #define Y_TRAIN_PATH "C:/Users/tecnico/Desktop/UniME/Materie/HPC/MPI/Programs/Federated_Parallel_KNN/y_train.csv"
 
@@ -22,6 +29,7 @@ typedef struct {
     float *test_point;
     float *local_distances;  // Array locale per le distanze del thread
 } ThreadData;
+
 // Funzione eseguita dai thread
 void *threadFunction(void *arg);
 
