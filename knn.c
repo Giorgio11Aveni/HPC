@@ -14,32 +14,34 @@ void calcDistance(void *arg) {
         float sum_distance = 0.0;
         for (int j = 0; j < data->num_columns; j++) {
             float test_point_value = data->test_point[j];
-            float point_distance = sqrt(pow(data->data_matrix[i * data->num_columns + j] - data->test_point[j], 2));
+            float point_distance = sqrt(pow(data->data_matrix[i * data->num_columns + j] - test_point_value, 2));
             sum_distance += point_distance;
         }
-        data->local_distances[i - data->start_row] = sum_distance;
+        // Assegnamento della distanza calcolata all'array all_distances del thread
+        data->all_distances[i - data->start_row] = sum_distance;
     }
 }
+
 
 void *threadFunction(void *arg) {
     ThreadData *data = (ThreadData *)arg;
     printf("Thread %d del processo:\n\n", data->thread_id);
-     /*for (int i = data->start_row; i < data->end_row; i++) {
-        printf("Etichetta: %d, Dati: ", data->label_matrix[i]);
-        for (int j = 0; j < data->num_columns; j++) {
-            printf("%f ", data->data_matrix[i * data->num_columns + j]);
-        }
-        printf("\n");
-    }*/
     calcDistance(data);
     int num_rows = data->end_row - data->start_row;
-    mergeSort(data->local_distances, 0, data->end_row - data->start_row - 1, data->label_matrix);
-   for (int i = 0; i < num_rows; i++) {
-        printf("Distances:\n%f\n ", data->local_distances[i]);
+
+    // Stampa le distanze locali
+    for (int i = 0; i < num_rows; i++) {
+        printf("Distanze: %f \n", data->all_distances[i]);
     }
-    printf("\n");
-    /*data->predicted_label = predict(data->local_distances, data->label_matrix);
-    printf("Predicted Class: %d\n\n", data->predicted_label);*/
+
+    // Copia le distanze locali nell'array globale all_distances
+    for (int i = 0; i < num_rows; i++) {
+        data->all_distances[data->start_row + i] = data->all_distances[i];
+    }
+
+    mergeSort(data->all_distances, 0, data->end_row - 1, data->label_matrix);
+    data->predicted_label = predict(data->all_distances, data->label_matrix);
+    printf("Predicted Class: %d\n\n", data->predicted_label);
     pthread_exit((void *)data);
 }
 
@@ -78,7 +80,7 @@ int knn(int rank, int size, char *data_filename, char *label_filename, float *te
 
         initializeThreads(threads, thread_data, num_rows, num_columns, data_matrix, label_matrix, test_point, all_distances);
 
-      float *thread_results = malloc(NTHREADS * 5 *sizeof(int));
+        float *thread_results = malloc(NTHREADS * 5 * sizeof(int));
 
         for (int i = 0; i < NTHREADS; i++) {
             pthread_create(&threads[i], NULL, threadFunction, (void *)&thread_data[i]);
@@ -86,19 +88,27 @@ int knn(int rank, int size, char *data_filename, char *label_filename, float *te
 
         for (int i = 0; i < NTHREADS; i++) {
             pthread_join(threads[i], (void **)&thread_data[i]);
-            for (int j = 0; j < 15; j++)
-            {
-                 thread_results[j] = thread_data[i].local_distances[j];
-            }
+            thread_results[i] = thread_data[i].local_distances[i];
         }
 
-// Stampa l'array di distanze per il processo corrente
-printf("Processo %d - Array di distanze: [", rank);
-for (int i = 0; i < NTHREADS*5; i++) {
-    printf("%f ", thread_results[i]);
-}
-printf("]\n");
+       /* int index = 0;
+        for (int i = 0; i < NTHREADS; i++)
+        {
+            for (int j = 0; i < 5; j++)
+            {
+                thread_results[index] = thread_data[i].local_distances[j];
+                index++;
+            }
+            
+        }*/
+        
 
+         // Stampa l'array di etichette per il processo corrente    
+        printf("Processo %d - Array di etichette predette: [", rank);
+        for (int i = 0; i < NTHREADS; i++) {
+            printf("%f ", thread_results[i]);
+        }
+        printf("]\n");
 
         // Calcola l'etichetta più frequente
         int *label_counts = calloc(num_rows, sizeof(int));
