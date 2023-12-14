@@ -1,11 +1,12 @@
 // header_thread.h
 
 #include <pthread.h>
+#include <stdlib.h>
 
 #ifndef HEADER_THREAD_H
 #define HEADER_THREAD_H
 
-#define NTHREADS 5
+#define NTHREADS 3
 #define NTRAIN 135
 #define NFEATURES 4
 #define MAX_ROW_LENGTH 1024
@@ -14,11 +15,11 @@
 #define TOPN 3 					      	// Print the closest top N classes
 
 // Array of all classes/ label names 
-char class[NCLASSES][25] = {"Iris-setosa", "Iris-versicolor", "Iris-virginica"};
+char classLabels[NCLASSES][25] = {"Iris-setosa", "Iris-versicolor", "Iris-virginica"};
 
-#define X_TRAIN_PATH "C:/Users/tecnico/Desktop/MPI/MS_MPI/Programs/Federated_Parallel_KNN/X_train.csv"
-#define Y_TRAIN_PATH "C:/Users/tecnico/Desktop/MPI/MS_MPI/Programs/Federated_Parallel_KNN/y_train.csv"
-
+#define X_TRAIN_PATH "C:/Users/tecnico/Desktop/MPI/MS_MPI/Programs/Federated_Parallel_KNN/Dataset/Iris_dataset/X_train.csv"
+#define Y_TRAIN_PATH "C:/Users/tecnico/Desktop/MPI/MS_MPI/Programs/Federated_Parallel_KNN/Dataset/Iris_dataset/y_train.csv"
+//thread struct
 typedef struct {
     int thread_id;
     int start_row;
