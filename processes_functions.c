@@ -5,6 +5,7 @@
 void initializeGlobalMessage(float global_message[4], int rank, int group_server_rank) {
     // Initialization of global message for rank 0
         if (rank == 0) {
+            printf("Inserisci il punto da classificare.\n");
         // Input 4 float numbers from the user
         for (int i = 0; i < 4; ++i) {
             scanf("%f", &global_message[i]);
