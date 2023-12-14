@@ -23,12 +23,16 @@ void calcDistance(void *arg) {
 
 void *threadFunction(void *arg) {
     ThreadData *data = (ThreadData *)arg;
-    printf("Thread %d del processo:\n\n", data->thread_id);
+    printf("Thread %d:\n\n", data->thread_id);
     calcDistance(data);
     int num_rows = data->end_row - data->start_row;
     mergeSort(data->local_distances, 0, data->end_row - data->start_row - 1, data->label_matrix);
-    data->predicted_label = predict(data->local_distances, data->label_matrix);
-    printf("Predicted Class: %d\n\n", data->predicted_label);
+    // Stampa le distanze locali
+    printf("Distances - Labels\n");
+    for (int i = 0; i < num_rows; i++) {
+        printf("%f       %d\n", data->local_distances[i], data->label_matrix[i]);
+    }
+    printf("\n");
     pthread_exit((void *)data);
 }
 
@@ -60,37 +64,42 @@ int knn(int rank, int size, char *data_filename, char *label_filename, float *te
 
         readAssignedRows(data_file, label_file, start_row, end_row, num_columns, data_matrix, label_matrix, line_data, line_label);
 
-        printf("Processo %d:\n", rank);
+        printf("Processo %d:\n\n", rank);
 
         pthread_t threads[NTHREADS];
         ThreadData thread_data[NTHREADS];
 
         initializeThreads(threads, thread_data, num_rows, num_columns, data_matrix, label_matrix, test_point, all_distances);
 
-        int *thread_results = malloc(NTHREADS * sizeof(int));
-
+         float *thread_distances = malloc(NTHREADS * 5 *sizeof(int));
+         int *thread_labels = malloc(NTHREADS * 5 *sizeof(int));
+        int index = 0;
         for (int i = 0; i < NTHREADS; i++) {
             pthread_create(&threads[i], NULL, threadFunction, (void *)&thread_data[i]);
+            
+            for (int j = 0; j < 5; j++)
+            {
+                pthread_join(threads[i], (void **)&thread_data[i]);
+                 thread_distances[index] = thread_data[i].local_distances[j];
+                 thread_labels[index] = thread_data[i].label_matrix[j];
+                 index++;
+            }
         }
 
-        for (int i = 0; i < NTHREADS; i++) {
-            pthread_join(threads[i], (void **)&thread_data[i]);
-            thread_results[i] = thread_data[i].predicted_label;
-        }
 
          // Stampa l'array di etichette per il processo corrente
-        printf("Processo %d - Array di etichette predette: [", rank);
-        for (int i = 0; i < NTHREADS; i++) {
-            printf("%d ", thread_results[i]);
+        printf("Processo %d:  Distances array - Labels array\n", rank);
+        for (int i = 0; i < NTHREADS*5; i++) {
+            printf("                 %f            %d\n", thread_distances[i], thread_labels[i]);
         }
-        printf("]\n");
+        
 
         // Calcola l'etichetta più frequente
         int *label_counts = calloc(num_rows, sizeof(int));
         int max_label = -1, max_count = 0;
 
         for (int i = 0; i < NTHREADS; i++) {
-            int current_label = thread_results[i];
+            int current_label = thread_distances[i];
             label_counts[current_label]++;
             if (label_counts[current_label] > max_count) {
                 max_count = label_counts[current_label];
@@ -101,7 +110,7 @@ int knn(int rank, int size, char *data_filename, char *label_filename, float *te
         // Stampa l'etichetta più frequente per il processo corrente
         printf("Processo %d - Etichetta piu' frequente: %d\n\n", rank, max_label);
 
-        free(thread_results);
+        free(thread_distances);
 
         cleanupAndClose(data_file, label_file, data_matrix, label_matrix);
 
