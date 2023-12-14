@@ -7,6 +7,16 @@
 #include <mpi.h>
 #include <math.h>
 
+// Definisci una funzione di confronto per qsort
+int compareDistances(const void *a, const void *b) {
+    // Confronta i valori di distanza
+    float distanceA = *((float *)a);
+    float distanceB = *((float *)b);
+
+    if (distanceA < distanceB) return -1;
+    else if (distanceA > distanceB) return 1;
+    else return 0;
+}
 
 float *getFloatMat(int m, int n)
 {
@@ -34,16 +44,6 @@ float getMax(float *x, int n)
 	return (float)maxIndex;
 }
 
-// Definisci una funzione di confronto per qsort
-int compareDistances(const void *a, const void *b) {
-    // Confronta i valori di distanza
-    float distanceA = *((float *)a);
-    float distanceB = *((float *)b);
-
-    if (distanceA < distanceB) return -1;
-    else if (distanceA > distanceB) return 1;
-    else return 0;
-}
 
 void openAndCheckCSVFiles(const char *data_filename, const char *label_filename, FILE **data_file, FILE **label_file){
 
@@ -107,16 +107,16 @@ void allocateMatrix(int start_row, int end_row, int *num_columns, float **data_m
     *all_distances = (float *)malloc(*num_rows * sizeof(float));
 }
 
-void readAssignedRows(FILE *data_file, FILE *label_file, int start_row, int end_row, int num_columns, float *data_matrix, int *label_matrix, char *line_data, char *line_label) {
+void readAssignedRows(FILE *data_file,FILE *label_file,int start_row,int end_row,int num_columns,float *data_matrix,int *label_matrix,char *line_data,char *line_label) {
     
 
-    // Riporta il cursore al principio del file
+    // Return the cursor to the beginning of the file
     fseek(data_file, 0, SEEK_SET);
     fseek(label_file, 0, SEEK_SET);
 
     for (int i = 0; i < end_row; i++) {
         if (i >= start_row) {
-            // Leggi i dati
+            // Read the data
             fgets(line_data, MAX_ROW_LENGTH, data_file);
             char *token_data = strtok(line_data, ",");
             for (int j = 0; j < num_columns; j++) {
@@ -124,11 +124,11 @@ void readAssignedRows(FILE *data_file, FILE *label_file, int start_row, int end_
                 token_data = strtok(NULL, ",");
             }
 
-            // Leggi le etichette
+            // Read the labels
             fgets(line_label, MAX_ROW_LENGTH, label_file);
             sscanf(line_label, "%d", &label_matrix[i - start_row]);
         } else {
-            fgets(line_data, MAX_ROW_LENGTH, data_file);  // Salta le righe non assegnate al processo corrente
+            fgets(line_data, MAX_ROW_LENGTH, data_file);  // Skip rows not assigned to the current process
             fgets(line_label, MAX_ROW_LENGTH, label_file);
         }
     }
@@ -149,12 +149,22 @@ void initializeThreads(pthread_t *threads, ThreadData *thread_data, int num_rows
         thread_data[i].test_point = test_point;
         thread_data[i].local_distances = all_distances;
 
-        pthread_create(&threads[i], NULL, threadFunction, (void *)&thread_data[i]);
+        
     }
+}
 
-    for (int i = 0; i < 3; i++) {
-        pthread_join(threads[i], NULL);
-    }
+void initializeProcessDistances(float thread_results, ThreadData *thread_data){
+    int index = 0;
+
+        for (int i = 0; i < NTHREADS; i++) {
+            printf("Distanze thread %d :\n",i);
+            for (int j = 0; j < 5; j++)
+            {
+                 printf("%f\n", thread_data[i]);
+                //thread_results[index] = thread_data->local_distances[j];
+                //index++;
+            }  
+        }
 }
 
 int predict(float *distance, int *labels) //topn < NCLASSES
@@ -174,7 +184,7 @@ int predict(float *distance, int *labels) //topn < NCLASSES
 
 	printf("Probability:\n");
 	for(i=0; i<TOPN; i++)
-		printf("%s\t%f\n", class[i], probability[i]);
+		printf("%s\t%f\n", classLabels[i], probability[i]);
 
 	free(neighborCount);
 	free(probability);
