@@ -1,14 +1,23 @@
-import csv
-import random
+import numpy as np
 
-# Imposta il seme per la riproducibilità
-random.seed(42)
+# Carica i dati esistenti dal tuo file CSV
+data = np.genfromtxt('X_train.csv', delimiter=',')
 
-# Genera una matrice 1000x4 di numeri float casuali
-data = [[random.uniform(1.0, 10.0) for _ in range(4)] for _ in range(1000)]
+# Specifica la quantità di rumore da aggiungere
+noise_factor = 0.05
 
-# Scrivi i dati in un file CSV
-with open('numeri_casuali.csv', 'w', newline='') as csvfile:
-    writer = csv.writer(csvfile)
-    for row in data:
-        writer.writerow(row)
+# Specifica il numero di righe da aggiungere
+numero_righe_da_aggiungere = 1  # Cambia questo valore a tuo piacimento
+
+# Crea nuove righe con valori simili ma non uguali
+new_rows = []
+for _ in range(numero_righe_da_aggiungere):
+    noise = np.random.uniform(-noise_factor, noise_factor, size=data.shape[1])
+    new_row = data[np.random.randint(data.shape[0])] + noise
+    new_rows.append(new_row)
+
+# Aggiungi le nuove righe al set di dati esistente
+extended_data = np.vstack([data, np.array(new_rows)])
+
+# Salva il nuovo set di dati in un nuovo file CSV
+np.savetxt('Nuovo2.csv', extended_data, delimiter=',', fmt='%.18e')
