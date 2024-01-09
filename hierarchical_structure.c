@@ -9,8 +9,9 @@
 
 
 int main(int argc, char *argv[]) {
-    
     MPI_Init(&argc, &argv);
+
+    double start_time, end_time;  // Variables to store start and end times
 
     int rank, size;
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
@@ -18,7 +19,23 @@ int main(int argc, char *argv[]) {
     int group_number;
     int intermediary_server_number_associated;
 
+    // Check if the correct number of command line arguments is provided
+    if (argc != 5)
+    {
+        if (rank == 0)
+            printf("Usage: %s <float1> <float2> <float3> <float4>\n", argv[0]);
+
+        MPI_Finalize();
+        exit(1);
+    }
+
     float global_message[4];
+
+    // Parse command line arguments and initialize UserPoint array
+    for (int i = 0; i < 4; i++)
+    {
+        global_message[i] = atof(argv[i + 1]);
+    }
 
     // Determine the group number for the current process
     group_number = determineGroupNumber(rank);
@@ -39,16 +56,7 @@ int main(int argc, char *argv[]) {
             printf("This program requires at least 7 processes.\n");
         }
     } else {
-        // Initialization of global message for rank 0
-        if (rank == 0) {
-            initializeGlobalMessage(global_message, rank, group_server_rank);
-        }
-
-        // Broadcast the global message to all processes in the subgroup
-        if (rank >= 0 && rank <= 3) {
-            MPI_Bcast(&global_message, 4, MPI_FLOAT, 0, server_group);
-        }
-
+        
         // Determine the intermediary server number associated with the current process
         intermediary_server_number_associated = getIntermediaryServerNumber(rank, group_number);
 
@@ -62,9 +70,6 @@ int main(int argc, char *argv[]) {
         // Get information about the sub-communicator
         getGroupInfo(intermediary_server1, &group1_rank, &group1_size);
 
-        // Broadcast the global message within the sub-communicator
-        broadcastMessage(rank, group_number, global_message, intermediary_server1);
-
         MPI_Comm intermediary_server2;
         MPI_Comm_split(MPI_COMM_WORLD, intermediary_server_number_associated, rank, &intermediary_server2);
 
@@ -72,8 +77,6 @@ int main(int argc, char *argv[]) {
         int group2_size;
 
         getGroupInfo(intermediary_server2, &group2_rank, &group2_size);
-
-        broadcastMessage(rank, group_number, global_message, intermediary_server2);
 
         MPI_Comm intermediary_server3;
         MPI_Comm_split(MPI_COMM_WORLD, intermediary_server_number_associated, rank, &intermediary_server3);
@@ -83,18 +86,19 @@ int main(int argc, char *argv[]) {
 
         getGroupInfo(intermediary_server3, &group3_rank, &group3_size);
 
-        broadcastMessage(rank, group_number, global_message, intermediary_server3);
-
         // Print details about intermediary server processes
         printIntermediaryServerProcessDetails(rank, intermediary_server_number_associated, group_number, group1_rank, group2_rank, group3_rank, group_server_rank, global_message);
 
         // Print details about local device
         printLocalDeviceDetails(rank, group_number, intermediary_server_number_associated, group1_rank, group2_rank, group3_rank, global_message);
-
         int label = 0;
+        float *thread_distances = malloc(NTHREADS * 5 *sizeof(int));
+        int *thread_labels = malloc(NTHREADS * 5 *sizeof(int));
 
         // Perform group calculations and update average
-        label = knn(rank, size, X_TRAIN_PATH, Y_TRAIN_PATH,global_message);
+        
+        
+        label= knn(rank, size, X_TRAIN_PATH, Y_TRAIN_PATH,global_message, thread_distances, thread_labels);
         
         int gathered_array0[group_server_size]; // The group 0 root process will collect all the arrays into this array of float array
         int gathered_array1[group1_size]; // The group 1 root process will collect all the arrays into this array of float arrays
@@ -128,7 +132,10 @@ int main(int argc, char *argv[]) {
         }
 
         int final_gather[3];
-
+if (rank == 0)
+        {
+            start_time = MPI_Wtime();  // Record the start time
+        }
         // Gather and print final labels for the point
         gatherAndPrintFinalLabel(rank, group_number, gathered_array0, final_gather, avg_intermediary_server1, avg_intermediary_server2, avg_intermediary_server3, group_server_rank, group_server_size, server_group);
 
@@ -139,7 +146,14 @@ int main(int argc, char *argv[]) {
         group_members(rank, group_server_size, group_server_rank, server_group, group_number);
     }
 
+    if (rank == 0) {
+            end_time = MPI_Wtime();  // Record the end time
+            printf("Total execution time: %f seconds\n\n", end_time - start_time);
+        }
+
     // Finalize MPI
     MPI_Finalize();
+
+    
     return 0;
 }
