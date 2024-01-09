@@ -4,35 +4,20 @@
 #include <mpi.h>
 #include <string.h>
 #include <unistd.h>
+#include "helper.h"
+#include "mergeSort.h"
 
-#define NTRAIN 135
+
+#define NTRAIN 1000026
 #define NFEATURES 4
 #define NTEST 16
 #define NCLASSES 3
-#define X_TRAIN_PATH "C:/Users/tecnico/Desktop/UniME/Materie/HPC/MPI/Programs/Parallel-KNN_example/Knn-MPI/X_train.csv"
-#define Y_TRAIN_PATH "C:/Users/tecnico/Desktop/UniME/Materie/HPC/MPI/Programs/Parallel-KNN_example/Knn-MPI/y_train.csv"
-#define X_TEST_PATH "C:/Users/tecnico/Desktop/UniME/Materie/HPC/MPI/Programs/Parallel-KNN_example/Knn-MPI/X_test.csv"
-#define Y_TEST_PATH "C:/Users/tecnico/Desktop/UniME/Materie/HPC/MPI/Programs/Parallel-KNN_example/Knn-MPI/y_test.csv"
+#define X_TRAIN_PATH "C:/Users/tecnico/Desktop/MPI/MS_MPI/Programs/Federated_Parallel_KNN/Dataset/dataset1000000.csv"
+#define Y_TRAIN_PATH "C:/Users/tecnico/Desktop/MPI/MS_MPI/Programs/Federated_Parallel_KNN/Dataset/label1000000.csv"
 #define K 3
 #define TOPN 3
 
 char class[NCLASSES][25] = {"Iris-setosa", "Iris-versicolor", "Iris-virginica"};
-
-void checkFile(FILE *f)
-{
-    if (f == NULL)
-    {
-        printf("Error while reading file\n");
-        exit(1);
-    }
-}
-
-float *getFloatMat(int m, int n)
-{
-    float *mat = NULL;
-    mat = (float *)calloc(m * n, sizeof(float));
-    return mat;
-}
 
 float *initFeatures(char path[])
 {
@@ -52,41 +37,100 @@ float *initFeatures(char path[])
     return mat;
 }
 
-void stampaMatriceFloat(int righe, int colonne, float matrice[righe][colonne])
+float *initLabels(char path[])
+{
+	int index = 0;
+	FILE *f  = NULL;
+	float *mat = NULL;
+
+	mat = getFloatMat(NTRAIN, 1);
+
+	f = fopen(path, "r");
+	checkFile(f);
+
+	while (fscanf(f, "%f%*c", &mat[index]) == 1)
+		index++;
+
+	fclose(f);
+	return mat;
+}
+
+void stampaMatriceFloat(int righe, int colonne, float *matrice)
 {
     int i, j;
-
     for (i = 0; i < righe; i++)
     {
         for (j = 0; j < colonne; j++)
         {
-            printf("%.2f ", matrice[i][j]);
+            printf("%.2f ", matrice[i * colonne + j]);
         }
         printf("\n");
     }
 }
 
+void calcDistance(int ndata_per_process, float *pdistance, float *pdata, float *x)
+{
+	int index = 0, i, j;
+	for(i=0; i<ndata_per_process; i=i+NFEATURES)
+	{
+		pdistance[index] = 0.0;
+
+		for(j=0; j<NFEATURES; j++)
+			pdistance[index] = pdistance[index] + (pdata[i+j]-x[j])*(pdata[i+j]-x[j]);
+
+		index++;
+	}
+}
+
+int predict(float *distance, float *labels) //topn < NCLASSES
+{
+	float* neighborCount = getFloatMat(NCLASSES, 1);
+	float* probability = getFloatMat(NCLASSES, 1);
+
+	int i;
+
+	for(i=0; i<K; i++)
+		neighborCount[(int)labels[i]]++;
+
+	for(i=0; i<NCLASSES; i++)
+		probability[i] = neighborCount[i]*1.0/(float)K*1.0;
+	
+	int predicted_class = (int)getMax(neighborCount, NCLASSES);
+
+	printf("\nProbability:\n");
+	for(i=0; i<TOPN; i++)
+		printf("%s\t%f\n", class[i], probability[i]);
+
+	free(neighborCount);
+	free(probability);
+
+	return predicted_class;
+}
+
+
 int main(int argc, char *argv[])
 {
-    int rank;
-    int size;
-    float *X_train;
-    int i, j;
-    int ndata_per_process, nrows_per_process;
-    float *pdata;
-    int t1,t2;
+    int rank, size, i, j, ndata_per_process, nrows_per_process;
+    float *X_train, *y_train, *pdata, *pdistance, *distance, *plabels, *labels;
+    
+    double t1, t2;
+    float UserPoint[4];
 
     MPI_Init(&argc, &argv);
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
     MPI_Comm_size(MPI_COMM_WORLD, &size);
 
-    if (rank == 0)
+    // Check if the correct number of command line arguments is provided
+    if (argc != 5)
     {
-        t1 = MPI_Wtime();
-    }
-    
+        if (rank == 0)
+            printf("Usage: %s <float1> <float2> <float3> <float4>\n", argv[0]);
 
-    if (NTRAIN % size != 0)
+        MPI_Finalize();
+        exit(1);
+    }
+
+     if (NTRAIN % size != 0)
     {
         if (rank == 0)
             printf("Number of rows in the training dataset should be divisible by the number of processors\n");
@@ -95,41 +139,57 @@ int main(int argc, char *argv[])
         exit(0);
     }
 
-    // Process 0 reads the training dataset (X_train) from a CSV file and prints it.
-    if (rank == 0)
+    // Parse command line arguments and initialize UserPoint array
+    for (int i = 0; i < 4; i++)
     {
-		
-        X_train = initFeatures(X_TRAIN_PATH);
-        
+        UserPoint[i] = atof(argv[i + 1]);
     }
 
-    // Wait for process 0 to finish reading and printing before proceeding
-    MPI_Barrier(MPI_COMM_WORLD);
+    if (rank == 0)
+    {
+        t1 = MPI_Wtime(); // Record start time
+
+        X_train = initFeatures(X_TRAIN_PATH);
+        y_train = initLabels(Y_TRAIN_PATH);
+
+    }
 
     // initialise arrays
     nrows_per_process = NTRAIN / size;
     ndata_per_process = nrows_per_process * NFEATURES;
 
     pdata = getFloatMat(nrows_per_process, NFEATURES);
+    plabels = getFloatMat(nrows_per_process, 1);
+    pdistance = getFloatMat(nrows_per_process, 1);
+    distance = getFloatMat(NTRAIN, 1);
+    labels = getFloatMat(NTRAIN, 1);
 
     // Scatter the data to all processes
     MPI_Scatter(X_train, ndata_per_process, MPI_FLOAT, pdata, ndata_per_process, MPI_FLOAT, 0, MPI_COMM_WORLD);
+    MPI_Scatter(y_train, nrows_per_process, MPI_FLOAT, plabels, nrows_per_process, MPI_FLOAT, 0, MPI_COMM_WORLD);
 
-    // Every process prints its own portion of the data
-    /*printf("Process %d printing its portion of data:\n", rank);
-    stampaMatriceFloat(nrows_per_process, NFEATURES, (float(*)[NFEATURES])pdata);*/
-    sleep(2);
+    calcDistance(ndata_per_process, pdistance, pdata, UserPoint);
+
+    //sort the distance array 
+	mergeSort(pdistance, 0, nrows_per_process - 1, plabels);
+
+    MPI_Gather(pdistance, nrows_per_process, MPI_FLOAT, distance, nrows_per_process, MPI_FLOAT, 0, MPI_COMM_WORLD);
+	MPI_Gather(plabels, nrows_per_process, MPI_FLOAT, labels, nrows_per_process, MPI_FLOAT, 0, MPI_COMM_WORLD);
+
+
     if (rank == 0)
     {
-        t2 = MPI_Wtime();
+        mergeSort(distance, 0, NTRAIN -1, labels);
+        int predicted_class = predict(distance, labels);
+			printf("\nPredicted label: %d - %s   \n\n", predicted_class, class[predicted_class]);
     }
 
-	if (rank == 0)
-	{
-		printf("Time for execution (%d Processors): %f\n", size, t2 - t1);
-		free(X_train);
-
-	}
+    if (rank == 0)
+    {
+        free(X_train);
+        t2 = MPI_Wtime(); // Record end time
+        printf("Time taken: %f seconds\n", t2 - t1);
+    }
 
     // Finalize MPI
     MPI_Finalize();
